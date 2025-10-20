@@ -19,6 +19,7 @@
         public virtual Patient Patient { get; set; }
         public virtual Staff Staff { get; set; }
         public virtual Schedule Schedule { get; set; }
+        public virtual Invoice Invoice { get; set; }
 
     }
 }

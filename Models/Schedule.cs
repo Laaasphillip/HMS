@@ -12,5 +12,8 @@
         public string Status { get; set; }
         public bool IsAvailable { get; set; }
         public DateTime CreatedAt { get; set; }
-    }
+
+        public virtual Staff Staff { get; set; }
+        public virtual Appointment Appointment { get; set; }
+}
 }

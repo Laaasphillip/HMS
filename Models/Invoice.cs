@@ -15,5 +15,7 @@
 
         public virtual Patient Patient { get; set; }
         public virtual Appointment Appointment { get; set; }
+        public ICollection<InvoiceItem> InvoiceItems { get; set; } = new List<InvoiceItem>(); // One-to-Many
+        public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>(); // One-to-Many
     }
 }
