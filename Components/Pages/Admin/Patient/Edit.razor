@@ -1,0 +1,218 @@
+﻿@page "/admin/patient/edit/{PatientId:int}"
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        Edit Patient - @patient.FullName
+                    </h4>
+                </div>
+                <div class="card-body">
+                    @if (isLoading)
+                    {
+                        <div class="text-center p-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="@patient" OnValidSubmit="HandleSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="text-danger" />
+
+                            <div class="row">
+                                <!-- Patient ID (Read-only) -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Patient ID</label>
+                                    <input type="text" class="form-control" value="@patient.PatientId" disabled />
+                                </div>
+
+                                <!-- Full Name -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Full Name *</label>
+                                    <InputText @bind-Value="patient.FullName" class="form-control" placeholder="Enter full name" />
+                                    <ValidationMessage For="@(() => patient.FullName)" />
+                                </div>
+
+                                <!-- Date of Birth -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Date of Birth *</label>
+                                    <InputDate @bind-Value="patient.DateOfBirth" class="form-control" />
+                                    <ValidationMessage For="@(() => patient.DateOfBirth)" />
+                                </div>
+
+                                <!-- Blood Group -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Blood Group *</label>
+                                    <InputSelect @bind-Value="patient.BloodGroup" class="form-select">
+                                        <option value="">Select Blood Group</option>
+                                        <option value="A+">A+</option>
+                                        <option value="A-">A-</option>
+                                        <option value="B+">B+</option>
+                                        <option value="B-">B-</option>
+                                        <option value="AB+">AB+</option>
+                                        <option value="AB-">AB-</option>
+                                        <option value="O+">O+</option>
+                                        <option value="O-">O-</option>
+                                    </InputSelect>
+                                    <ValidationMessage For="@(() => patient.BloodGroup)" />
+                                </div>
+
+                                <!-- Phone -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Phone *</label>
+                                    <InputText @bind-Value="patient.Phone" class="form-control" placeholder="+46 70 123 4567" />
+                                    <ValidationMessage For="@(() => patient.Phone)" />
+                                </div>
+
+                                <!-- Email -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Email *</label>
+                                    <InputText @bind-Value="patient.Email" type="email" class="form-control" placeholder="email@example.com" />
+                                    <ValidationMessage For="@(() => patient.Email)" />
+                                </div>
+
+                                <!-- Emergency Contact -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Emergency Contact *</label>
+                                    <InputText @bind-Value="patient.EmergencyContact" class="form-control" placeholder="+46 70 987 6543" />
+                                    <ValidationMessage For="@(() => patient.EmergencyContact)" />
+                                </div>
+
+                                <!-- Address -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Address</label>
+                                    <InputText @bind-Value="patient.Address" class="form-control" placeholder="Street, City, Postal Code" />
+                                </div>
+
+                                <!-- Created At (Read-only) -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Registered Date</label>
+                                    <input type="text" class="form-control" value="@patient.CreatedAt.ToString("yyyy-MM-dd HH:mm")" disabled />
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex gap-2 mt-4">
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="bi bi-check-circle me-1"></i> Update Patient
+                                </button>
+                                <button type="button" class="btn btn-secondary" @onclick="Cancel">
+                                    <i class="bi bi-x-circle me-1"></i> Cancel
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int PatientId { get; set; }
+
+    private PatientEditModel patient = new();
+    private bool isLoading = true;
+
+    protected override void OnInitialized()
+    {
+        // Simulate loading data from database
+        LoadPatientData();
+        isLoading = false;
+    }
+
+    private void LoadPatientData()
+    {
+        // In real app, fetch from database
+        // For demo, using hardcoded data
+        patient = PatientId switch
+        {
+            1001 => new PatientEditModel
+            {
+                PatientId = 1001,
+                FullName = "Emma Johnson",
+                DateOfBirth = new DateTime(1985, 5, 15),
+                BloodGroup = "A+",
+                Phone = "+46 70 123 4567",
+                Email = "emma.johnson@email.com",
+                EmergencyContact = "+46 70 987 6543",
+                Address = "123 Main Street, Stockholm",
+                CreatedAt = new DateTime(2024, 1, 15)
+            },
+            1002 => new PatientEditModel
+            {
+                PatientId = 1002,
+                FullName = "Michael Anderson",
+                DateOfBirth = new DateTime(1990, 8, 22),
+                BloodGroup = "O+",
+                Phone = "+46 70 234 5678",
+                Email = "michael.anderson@email.com",
+                EmergencyContact = "+46 70 876 5432",
+                Address = "456 Oak Avenue, Gothenburg",
+                CreatedAt = new DateTime(2024, 2, 20)
+            },
+            _ => new PatientEditModel
+            {
+                PatientId = PatientId,
+                FullName = "Sample Patient",
+                DateOfBirth = DateTime.Now.AddYears(-30),
+                BloodGroup = "O+",
+                Phone = "+46 70 000 0000",
+                Email = "patient@email.com",
+                EmergencyContact = "+46 70 000 0001",
+                Address = "Sample Address",
+                CreatedAt = DateTime.Now
+            }
+        };
+    }
+
+    private void HandleSubmit()
+    {
+        // In real app, save to database
+        // For demo, just navigate back
+        Navigation.NavigateTo("/Admin/Patient");
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/Admin/Patient");
+    }
+
+    public class PatientEditModel
+    {
+        public int PatientId { get; set; }
+
+        [Required(ErrorMessage = "Full name is required")]
+        [StringLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Date of birth is required")]
+        public DateTime DateOfBirth { get; set; }
+
+        [Required(ErrorMessage = "Blood group is required")]
+        public string BloodGroup { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Phone is required")]
+        [Phone(ErrorMessage = "Invalid phone number")]
+        public string Phone { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email address")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Emergency contact is required")]
+        public string EmergencyContact { get; set; } = string.Empty;
+
+        public string? Address { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+    }
+}

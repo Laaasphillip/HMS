@@ -1,0 +1,243 @@
+﻿@page "/admin/staff/edit/{StaffId:int}"
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        Edit Staff - @staff.FullName
+                    </h4>
+                </div>
+                <div class="card-body">
+                    @if (isLoading)
+                    {
+                        <div class="text-center p-5">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="@staff" OnValidSubmit="HandleSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="text-danger" />
+
+                            <div class="row">
+                                <!-- Staff ID (Read-only) -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Staff ID</label>
+                                    <input type="text" class="form-control" value="@staff.StaffId" disabled />
+                                </div>
+
+                                <!-- Full Name -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Full Name *</label>
+                                    <InputText @bind-Value="staff.FullName" class="form-control" placeholder="Enter full name" />
+                                    <ValidationMessage For="@(() => staff.FullName)" />
+                                </div>
+
+                                <!-- Role -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Role *</label>
+                                    <InputSelect @bind-Value="staff.Role" class="form-select">
+                                        <option value="">Select Role</option>
+                                        <option value="Doctor">Doctor</option>
+                                        <option value="Nurse">Nurse</option>
+                                        <option value="Receptionist">Receptionist</option>
+                                        <option value="Administrator">Administrator</option>
+                                        <option value="Technician">Technician</option>
+                                    </InputSelect>
+                                    <ValidationMessage For="@(() => staff.Role)" />
+                                </div>
+
+                                <!-- Specialization -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Specialization *</label>
+                                    <InputText @bind-Value="staff.Specialization" class="form-control" placeholder="e.g., Cardiology, Emergency Care" />
+                                    <ValidationMessage For="@(() => staff.Specialization)" />
+                                </div>
+
+                                <!-- Phone -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Phone *</label>
+                                    <InputText @bind-Value="staff.Phone" class="form-control" placeholder="+46 70 123 4567" />
+                                    <ValidationMessage For="@(() => staff.Phone)" />
+                                </div>
+
+                                <!-- Email -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Email *</label>
+                                    <InputText @bind-Value="staff.Email" type="email" class="form-control" placeholder="email@hospital.com" />
+                                    <ValidationMessage For="@(() => staff.Email)" />
+                                </div>
+
+                                <!-- License Number -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">License Number</label>
+                                    <InputText @bind-Value="staff.LicenseNumber" class="form-control" placeholder="MD-2024-1234" />
+                                </div>
+
+                                <!-- Hourly Rate -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Hourly Rate (SEK) *</label>
+                                    <InputNumber @bind-Value="staff.HourlyRate" class="form-control" step="0.01" />
+                                    <ValidationMessage For="@(() => staff.HourlyRate)" />
+                                </div>
+
+                                <!-- Hired Date -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Hired Date *</label>
+                                    <InputDate @bind-Value="staff.HiredDate" class="form-control" />
+                                    <ValidationMessage For="@(() => staff.HiredDate)" />
+                                </div>
+
+                                <!-- Department -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Department</label>
+                                    <InputText @bind-Value="staff.Department" class="form-control" placeholder="e.g., Emergency, ICU" />
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex gap-2 mt-4">
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="bi bi-check-circle me-1"></i> Update Staff
+                                </button>
+                                <button type="button" class="btn btn-secondary" @onclick="Cancel">
+                                    <i class="bi bi-x-circle me-1"></i> Cancel
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int StaffId { get; set; }
+
+    private StaffEditModel staff = new();
+    private bool isLoading = true;
+
+    protected override void OnInitialized()
+    {
+        // Simulate loading data from database
+        LoadStaffData();
+        isLoading = false;
+    }
+
+    private void LoadStaffData()
+    {
+        // In real app, fetch from database
+        // For demo, using hardcoded data
+        staff = StaffId switch
+        {
+            2001 => new StaffEditModel
+            {
+                StaffId = 2001,
+                FullName = "Dr. Sarah Williams",
+                Role = "Doctor",
+                Specialization = "Cardiology",
+                Phone = "+46 70 111 2222",
+                Email = "sarah.williams@hospital.com",
+                LicenseNumber = "MD-2015-1234",
+                HourlyRate = 150.00m,
+                HiredDate = new DateTime(2015, 6, 1),
+                Department = "Cardiology"
+            },
+            2002 => new StaffEditModel
+            {
+                StaffId = 2002,
+                FullName = "Dr. James Peterson",
+                Role = "Doctor",
+                Specialization = "Neurology",
+                Phone = "+46 70 222 3333",
+                Email = "james.peterson@hospital.com",
+                LicenseNumber = "MD-2018-5678",
+                HourlyRate = 145.00m,
+                HiredDate = new DateTime(2018, 3, 15),
+                Department = "Neurology"
+            },
+            2003 => new StaffEditModel
+            {
+                StaffId = 2003,
+                FullName = "Nurse Maria Karlsson",
+                Role = "Nurse",
+                Specialization = "Emergency Care",
+                Phone = "+46 70 333 4444",
+                Email = "maria.karlsson@hospital.com",
+                LicenseNumber = "RN-2019-9012",
+                HourlyRate = 45.00m,
+                HiredDate = new DateTime(2019, 9, 10),
+                Department = "Emergency"
+            },
+            _ => new StaffEditModel
+            {
+                StaffId = StaffId,
+                FullName = "Sample Staff",
+                Role = "Doctor",
+                Specialization = "General Practice",
+                Phone = "+46 70 000 0000",
+                Email = "staff@hospital.com",
+                LicenseNumber = "N/A",
+                HourlyRate = 100.00m,
+                HiredDate = DateTime.Now,
+                Department = "General"
+            }
+        };
+    }
+
+    private void HandleSubmit()
+    {
+        // In real app, save to database
+        // For demo, just navigate back
+        Navigation.NavigateTo("/Admin/Staff");
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/Admin/Staff");
+    }
+
+    public class StaffEditModel
+    {
+        public int StaffId { get; set; }
+
+        [Required(ErrorMessage = "Full name is required")]
+        [StringLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Role is required")]
+        public string Role { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Specialization is required")]
+        [StringLength(100, ErrorMessage = "Specialization cannot exceed 100 characters")]
+        public string Specialization { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Phone is required")]
+        [Phone(ErrorMessage = "Invalid phone number")]
+        public string Phone { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email address")]
+        public string Email { get; set; } = string.Empty;
+
+        public string? LicenseNumber { get; set; }
+
+        [Required(ErrorMessage = "Hourly rate is required")]
+        [Range(0.01, 10000, ErrorMessage = "Hourly rate must be between 0.01 and 10000")]
+        public decimal HourlyRate { get; set; }
+
+        [Required(ErrorMessage = "Hired date is required")]
+        public DateTime HiredDate { get; set; }
+
+        public string? Department { get; set; }
+    }
+}
