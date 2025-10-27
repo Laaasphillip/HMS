@@ -1,0 +1,91 @@
+﻿@page "/invoice/details"
+
+<section class="content-area container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0">
+            <i class="bi bi-receipt-cutoff me-2"></i> Your Transactions
+        </h2>
+        <button class="btn btn-outline-primary">
+            <i class="bi bi-arrow-repeat me-1"></i> Refresh
+        </button>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="mb-1 fw-semibold">Invoice #INV-1024</h5>
+                    <p class="text-muted mb-0">Date: Oct 23, 2025</p>
+                </div>
+                <span class="badge bg-success p-2 px-3">Paid</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-borderless align-middle">
+                    <thead class="border-bottom">
+                        <tr class="text-muted">
+                            <th>Treatment</th>
+                            <th>Doctor</th>
+                            <th>Quantity</th>
+                            <th>Tax</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Dengue Treatment</td>
+                            <td>Dr. Rajitha</td>
+                            <td>1</td>
+                            <td>10%</td>
+                            <td>$15,000.00</td>
+                        </tr>
+                        <tr>
+                            <td>Consultation</td>
+                            <td>Dr. Rajitha</td>
+                            <td>1</td>
+                            <td>5%</td>
+                            <td>$2,500.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <hr />
+
+            <div class="d-flex justify-content-end">
+                <div class="text-end">
+                    <p class="text-muted mb-1">Subtotal: $17,500.00</p>
+                    <p class="text-muted mb-1">Tax (10%): $1,750.00</p>
+                    <h5 class="fw-bold mb-0">Total: $19,250.00</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="fw-semibold mb-1">Payment Method</h6>
+                <p class="text-muted mb-0">Credit Card (**** 3456)</p>
+            </div>
+            <button class="btn btn-outline-success">
+                <i class="bi bi-download me-1"></i> Download Receipt
+            </button>
+        </div>
+    </div>
+</section>
+
+<style>
+    .content-area {
+        background-color: #f8f9fa;
+        min-height: 100vh;
+    }
+
+    table th {
+        font-weight: 600;
+    }
+
+    table td {
+        vertical-align: middle;
+    }
+</style>

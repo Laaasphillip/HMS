@@ -14,33 +14,26 @@
     <nav class="nav flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
- @*        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+                <i class="bi bi-house-door-fill me-2" aria-hidden="true"></i> Home
             </NavLink>
         </div>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            <NavLink class="nav-link" href="Admin/Patient">
+                <i class="bi bi-person-hearts me-2" aria-hidden="true"></i> Patients
             </NavLink>
         </div>
-
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="auth">
-                <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> Auth Required
+            <NavLink class="nav-link" href="Admin/Staff">
+                <i class="bi bi-person-workspace me-2" aria-hidden="true"></i> Staff
             </NavLink>
-        </div> *@
+        </div>
 
         <AuthorizeView>
             <Authorized>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
+                        <i class="bi bi-person-fill me-2" aria-hidden="true"></i> @context.User.Identity?.Name
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
@@ -48,20 +41,35 @@
                         <AntiforgeryToken />
                         <input type="hidden" name="ReturnUrl" value="@currentUrl" />
                         <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
+                            <i class="bi bi-arrow-bar-left me-2" aria-hidden="true"></i> Logout
                         </button>
                     </form>
                 </div>
             </Authorized>
             <NotAuthorized>
                 <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/Dashboard">
+                        <i class="bi bi-microsoft me-2" aria-hidden="true"> </i> Dashboard
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/Invoice">
+                        <i class="bi bi-receipt me-2" aria-hidden="true"></i> Invoice
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/Admin/transaction">
+                        <i class="bi bi-receipt me-2" aria-hidden="true"></i> Transactions
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
+                        <i class="bi bi-person me-2" aria-hidden="true"></i> Register
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
+                        <i class="bi bi-person-badge me-2" aria-hidden="true"></i> Login
                     </NavLink>
                 </div>
             </NotAuthorized>

@@ -1,0 +1,150 @@
+﻿@page "/admin/patient/create"
+@rendermode InteractiveServer
+@inject NavigationManager Navigation
+@using System.ComponentModel.DataAnnotations
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-person-plus-fill me-2"></i>
+                        Add New Patient
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@patient" OnValidSubmit="HandleSubmit">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger mb-3" />
+
+                        <div class="row">
+                            <!-- Full Name -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Full Name *</label>
+                                <InputText @bind-Value="patient.FullName" class="form-control" placeholder="Enter full name" />
+                                <ValidationMessage For="@(() => patient.FullName)" />
+                            </div>
+
+                            <!-- Date of Birth -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Date of Birth *</label>
+                                <InputDate @bind-Value="patient.DateOfBirth" class="form-control" />
+                                <ValidationMessage For="@(() => patient.DateOfBirth)" />
+                            </div>
+
+                            <!-- Blood Group -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Blood Group *</label>
+                                <InputSelect @bind-Value="patient.BloodGroup" class="form-select">
+                                    <option value="">Select Blood Group</option>
+                                    <option value="A+">A+</option>
+                                    <option value="A-">A-</option>
+                                    <option value="B+">B+</option>
+                                    <option value="B-">B-</option>
+                                    <option value="AB+">AB+</option>
+                                    <option value="AB-">AB-</option>
+                                    <option value="O+">O+</option>
+                                    <option value="O-">O-</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => patient.BloodGroup)" />
+                            </div>
+
+                            <!-- Phone -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone *</label>
+                                <InputText @bind-Value="patient.Phone" class="form-control" placeholder="+46 70 123 4567" />
+                                <ValidationMessage For="@(() => patient.Phone)" />
+                            </div>
+
+                            <!-- Email -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email *</label>
+                                <InputText @bind-Value="patient.Email" type="email" class="form-control" placeholder="email@example.com" />
+                                <ValidationMessage For="@(() => patient.Email)" />
+                            </div>
+
+                            <!-- Emergency Contact -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Emergency Contact *</label>
+                                <InputText @bind-Value="patient.EmergencyContact" class="form-control" placeholder="+46 70 987 6543" />
+                                <ValidationMessage For="@(() => patient.EmergencyContact)" />
+                            </div>
+
+                            <!-- Address -->
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Address</label>
+                                <InputText @bind-Value="patient.Address" class="form-control" placeholder="Street, City, Postal Code" />
+                            </div>
+
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> Create Patient
+                            </button>
+                            <button type="button" class="btn btn-secondary" @onclick="Cancel">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private PatientCreateModel patient = new()
+    {
+        DateOfBirth = DateTime.Now.AddYears(-30) // Default to 30 years ago
+    };
+
+    private void HandleSubmit()
+    {
+        // In real app, save to database via service
+        // Example:
+        // await PatientService.CreateAsync(patient);
+
+        // For demo, just navigate back to list
+        Navigation.NavigateTo("/Admin/Patient");
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/Admin/Patient");
+    }
+
+    public class PatientCreateModel
+    {
+        [Required(ErrorMessage = "Full name is required")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Name must be between 2 and 100 characters")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Date of birth is required")]
+        [DataType(DataType.Date)]
+        public DateTime DateOfBirth { get; set; }
+
+        [Required(ErrorMessage = "Blood group is required")]
+        public string BloodGroup { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Phone is required")]
+        [Phone(ErrorMessage = "Invalid phone number format")]
+        [StringLength(20, ErrorMessage = "Phone number cannot exceed 20 characters")]
+        public string Phone { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email address format")]
+        [StringLength(100, ErrorMessage = "Email cannot exceed 100 characters")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Emergency contact is required")]
+        [StringLength(20, ErrorMessage = "Emergency contact cannot exceed 20 characters")]
+        public string EmergencyContact { get; set; } = string.Empty;
+
+        [StringLength(200, ErrorMessage = "Address cannot exceed 200 characters")]
+        public string? Address { get; set; }
+
+    }
+}
