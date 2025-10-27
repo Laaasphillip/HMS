@@ -15,5 +15,9 @@
 
         public virtual Staff Staff { get; set; }
         public virtual Appointment Appointment { get; set; }
-}
+
+        public virtual TimeReport TimeReport { get; set; }
+
+
+    }
 }
