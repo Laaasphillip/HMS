@@ -28,6 +28,12 @@
                 <i class="bi bi-person-workspace me-2" aria-hidden="true"></i> Staff
             </NavLink>
         </div>
+        @*Appointment*@
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="appointments">
+                <i class="bi bi-calendar2-check me-2" aria-hidden="true"></i> Appointments
+            </NavLink>
+        </div>
 
         <AuthorizeView>
             <Authorized>
@@ -57,6 +63,8 @@
                         <i class="bi bi-person-badge me-2" aria-hidden="true"></i> Login
                     </NavLink>
                 </div>
+               
+
             </NotAuthorized>
         </AuthorizeView>
     </nav>

@@ -10,7 +10,7 @@ namespace HMS.Models
         public decimal Taxes { get; set; }
         public string Bankdetails { get; set; }
         public int Vacationdays { get; set; }
-        public int UserId { get; set; }
+        public string UserId { get; set; } = string.Empty;
         public string Specialization { get; set; }
         public decimal HourlyRate { get; set; }
         public DateTime HiredDate { get; set; } = DateTime.UtcNow;
