@@ -1,0 +1,98 @@
+﻿@page "/admin/timereport/index"
+@using HMS.Models
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3>🕒 Admin Time Reports</h3>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <button class="btn btn-success" @onclick="CreateNewReport">+ Add Time Report</button>
+    <input class="form-control w-25" placeholder="Search by Staff ID..." @bind="searchQuery" />
+</div>
+
+<table class="table table-striped table-bordered align-middle">
+    <thead class="table-dark">
+        <tr>
+            <th>ID</th>
+            <th>Staff ID</th>
+            <th>Clock In</th>
+            <th>Clock Out</th>
+            <th>Hours Worked</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (FilteredReports.Any())
+        {
+            @foreach (var report in FilteredReports)
+            {
+                <tr>
+                    <td>@report.Id</td>
+                    <td>@report.StaffId</td>
+                    <td>@report.ClockIn.ToString("g")</td>
+                    <td>@report.ClockOut.ToString("g")</td>
+                    <td>@report.HoursWorked</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-2"
+                                @onclick="() => ViewReport(report.Id)">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning me-2"
+                                @onclick="() => EditReport(report.Id)">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger"
+                                @onclick="() => DeleteReport(report.Id)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="6" class="text-center text-muted">No time reports found.</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<TimeReport> Reports = new();
+    private string searchQuery = "";
+
+    protected override void OnInitialized()
+    {
+        Reports = new List<TimeReport>
+        {
+            new() { Id = 1, StaffId = 101, ClockIn = DateTime.Now.AddHours(-8), ClockOut = DateTime.Now, HoursWorked = 8 },
+            new() { Id = 2, StaffId = 102, ClockIn = DateTime.Now.AddHours(-7), ClockOut = DateTime.Now, HoursWorked = 7 }
+        };
+    }
+
+    private IEnumerable<TimeReport> FilteredReports =>
+        string.IsNullOrWhiteSpace(searchQuery)
+            ? Reports
+            : Reports.Where(r => r.StaffId.ToString().Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+
+    private void CreateNewReport()
+    {
+        Navigation.NavigateTo("/timereport/index");
+    }
+
+    private void ViewReport(int id)
+    {
+        Navigation.NavigateTo("/timereport/index");
+    }
+
+    private void EditReport(int id)
+    {
+        Navigation.NavigateTo($"/admin/timereports/edit/{id}");
+    }
+
+    private void DeleteReport(int id)
+    {
+        Reports.RemoveAll(r => r.Id == id);
+    }
+}
