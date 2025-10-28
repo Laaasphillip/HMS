@@ -1,0 +1,172 @@
+﻿@page "/invoice"
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@rendermode InteractiveServer
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+<h3>Invoice</h3>
+
+<!-- Main -->
+<main class="col-12 col-md-9 col-lg-10 py-4">
+    <header class="d-flex justify-content-between align-items-center mb-4">
+        
+
+        <div class="d-flex align-items-center gap-3">
+            <div class="d-none d-sm-flex align-items-center gap-2">
+                <span class="profile-icon rounded-circle bg-secondary d-inline-block" style="width:36px;height:36px"></span>
+                <span class="profile-name">INSERT USER NAME</span>
+            </div>
+            
+        </div>
+    </header>
+
+    <section class="content-area">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1 class="h4 mb-0">Invoice Management</h1>
+            <div>
+                <button type="button" class="btn btn-outline-secondary me-2">Generate Report</button>
+            </div>
+        </div>
+
+        <form class="invoice-form mb-4" role="form" aria-label="Invoice management form">
+            <div class="row g-2 mb-2">
+                <div class="col-12 col-md-6">
+                    <div class="input-group">
+                        <label for="invoice-id" class="visually-hidden">Invoice ID</label>
+                        <input type="text" id="invoice-id" name="invoice-id" class="form-control" placeholder="Invoice ID" aria-label="Invoice ID">
+                        <button class="btn btn-primary" type="submit">Search</button>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label for="patient-name" class="form-label visually-hidden">Patient Name</label>
+                    <select id="patient-name" name="patient-name" class="form-select" aria-label="Select patient name">
+                        <option value="">Patient Name</option>
+                        <option value="sapooth">Sapooth</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label for="patient-name" class="form-label visually-hidden">Patient Name</label>
+                    <select id="patient-name" name="patient-name" class="form-select" aria-label="Select appointment">
+                        <option value="">Appointment ID</option>
+                        <option value="sapooth">1</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label for="doctor-name" class="form-label visually-hidden">Doctor Name</label>
+                    <select id="doctor-name" name="doctor-name" class="form-select" aria-label="Select doctor name">
+                        <option value="">Doctor Name</option>
+                        <option value="dr-rajitha">Dr.Rajitha</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label for="treatment" class="form-label visually-hidden">Treatment</label>
+                    <select id="treatment" name="treatment" class="form-select" aria-label="Select treatment">
+                        <option value="">Treatment</option>
+                        <option value="dengue">Dengue</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label for="description" class="form-label visually-hidden">Description</label>
+                    <input id="description"
+                           type="text"
+                           class="form-control"
+                           placeholder="Enter description"
+                           aria-label="Description" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label for="treatment" class="form-label visually-hidden">Treatment</label>
+                    <select id="treatment" name="treatment" class="form-select" aria-label="Select treatment">
+                        <option value="">Quantity</option>
+                        <option value="dengue">1</option>
+                        <option value="dengue">2</option>
+                        <option value="dengue">3</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3 d-flex align-items-center">
+                    <div class="ms-auto text-md-end w-100">
+                        <div class="text-muted small">Tax Amount</div>
+                        <div class="h5 mb-0">10%</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 d-flex align-items-center">
+                    <div class="ms-auto text-md-end w-100">
+                        <div class="text-muted small">Total Amount</div>
+                        <div class="h5 mb-0">15,000.00</div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <button type="button" class="btn btn-success">Generate Bill</button>
+                </div>
+            </div>
+        </form>
+
+        @* @if (user?.IsInRole("Admin") == true)
+        { *@
+            <section class="recent-invoice-section mb-5" aria-labelledby="recent-invoice-heading">
+                <div class="mb-3">
+                    <h2 id="recent-invoice-heading" class="h5 mb-1">Recent Invoice</h2>
+                    <p class="text-muted small mb-0">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+                </div>
+
+                <div class="table-responsive shadow-sm bg-white rounded">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col">ID</th>
+                                <th scope="col">Patient Name</th>
+                                <th scope="col">Doctor</th>
+                                <th scope="col">Treatment</th>
+                                <th scope="col">Total Amount</th>
+                                <th scope="col" class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>Sapooth</td>
+                                <td>Dr.Rajitha</td>
+                                <td>Dengue</td>
+                                <td>15,000.00</td>
+                                <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="TransactionInvoice">Pay</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="DetailsInvoice">Details</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="EditInvoice">Edit</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" aria-label="Delete invoice 1">Delete</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        @* } *@
+    </section>
+</main>
+
+@code {
+    private void TransactionInvoice()
+    {
+        Navigation.NavigateTo($"/invoice/transaction");
+    }
+
+    private void DetailsInvoice()
+    {
+        Navigation.NavigateTo($"/invoice/details");
+    }
+
+    private void EditInvoice()
+    {
+        Navigation.NavigateTo($"/invoice/edit");
+    }
+
+    private ClaimsPrincipal? user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        user = authState.User;
+    }
+
+
+} 

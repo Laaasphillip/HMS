@@ -1,0 +1,128 @@
+﻿@page "/admin/transaction"
+
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3 class="mb-4">💳 Transaction Management</h3>
+
+<div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card shadow-sm text-center">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">Total Revenue</h6>
+                <h4 class="text-success">$45,230</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card shadow-sm text-center">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">Completed Transactions</h6>
+                <h4>152</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card shadow-sm text-center">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">Pending Payments</h6>
+                <h4 class="text-warning">8</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card shadow-sm text-center">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">Refunded</h6>
+                <h4 class="text-danger">3</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Filters *@
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label for="search" class="form-label">Search</label>
+                <input id="search" type="text" class="form-control" placeholder="Patient or Invoice Number" />
+            </div>
+            <div class="col-md-3">
+                <label for="dateFrom" class="form-label">From</label>
+                <input id="dateFrom" type="date" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <label for="dateTo" class="form-label">To</label>
+                <input id="dateTo" type="date" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label for="status" class="form-label">Status</label>
+                <select id="status" class="form-select">
+                    <option value="">All</option>
+                    <option>Paid</option>
+                    <option>Pending</option>
+                    <option>Refunded</option>
+                </select>
+            </div>
+            <div class="col-md-1 text-end">
+                <button class="btn btn-primary w-100">Filter</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@*Transaction Table*@
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Transaction ID</th>
+                    <th>Date</th>
+                    <th>Patient Name</th>
+                    <th>Invoice #</th>
+                    <th>Amount</th>
+                    <th>Payment Method</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>#TXN001</td>
+                    <td>2025-10-20</td>
+                    <td>Sapooth</td>
+                    <td>#INV-105</td>
+                    <td>$500</td>
+                    <td>Credit Card</td>
+                    <td><span class="badge bg-success">Paid</span></td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary me-2" @onclick="DetailsInvoice"><i class="bi bi-eye"></i></button>
+                        <button class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-printer"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>#TXN002</td>
+                    <td>2025-10-21</td>
+                    <td>John Doe</td>
+                    <td>#INV-106</td>
+                    <td>$750</td>
+                    <td>Cash</td>
+                    <td><span class="badge bg-warning text-dark">Pending</span></td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary me-2" @onclick="DetailsInvoice"><i class="bi bi-eye"></i></button>
+                        <button class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-printer"></i></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private void DetailsInvoice()
+    {
+        Navigation.NavigateTo("/invoice/details");
+    }
+}

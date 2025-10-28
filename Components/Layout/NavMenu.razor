@@ -28,10 +28,14 @@
                 <i class="bi bi-person-workspace me-2" aria-hidden="true"></i> Staff
             </NavLink>
         </div>
-        @*Appointment*@
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="appointments">
-                <i class="bi bi-calendar2-check me-2" aria-hidden="true"></i> Appointments
+            <NavLink class="nav-link" href="/Admin/Schedule">
+                <i class="bi bi-calendar-plus me-2" aria-hidden="true"></i> Schedule
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/Profile">
+                <RadzenIcon Icon="account_circle" class=" me-2" /> Profile
             </NavLink>
         </div>
 
@@ -53,6 +57,21 @@
                 </div>
             </Authorized>
             <NotAuthorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/Dashboard">
+                        <RadzenIcon Icon="dashboard" class=" me-2" /> Dashboard
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/Invoice">
+                        <i class="bi bi-receipt me-2" aria-hidden="true"></i> Invoice
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/Admin/transaction">
+                        <i class="bi bi-receipt me-2" aria-hidden="true"></i> Transactions
+                    </NavLink>
+                </div>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Register">
                         <i class="bi bi-person me-2" aria-hidden="true"></i> Register
