@@ -116,25 +116,10 @@
                     </label>
                     <InputSelect id="appointment-time" class="form-select" @bind-Value="selectedTime">
                         <option value="">Select Time</option>
-                        <option value="08:00">08:00 (8 AM)</option>
-                        <option value="08:30">08:30 (8:30 AM)</option>
-                        <option value="09:00">09:00 (9 AM)</option>
-                        <option value="09:30">09:30 (9:30 AM)</option>
-                        <option value="10:00">10:00 (10 AM)</option>
-                        <option value="10:30">10:30 (10:30 AM)</option>
-                        <option value="11:00">11:00 (11 AM)</option>
-                        <option value="11:30">11:30 (11:30 AM)</option>
-                        <option value="12:00">12:00 (12 PM)</option>
-                        <option value="12:30">12:30 (12:30 PM)</option>
-                        <option value="13:00">13:00 (1 PM)</option>
-                        <option value="13:30">13:30 (1:30 PM)</option>
-                        <option value="14:00">14:00 (2 PM)</option>
-                        <option value="14:30">14:30 (2:30 PM)</option>
-                        <option value="15:00">15:00 (3 PM)</option>
-                        <option value="15:30">15:30 (3:30 PM)</option>
-                        <option value="16:00">16:00 (4 PM)</option>
-                        <option value="16:30">16:30 (4:30 PM)</option>
-                        <option value="17:00">17:00 (5 PM)</option>
+                        @foreach (var time in GetTimeSlots())
+                        {
+                            <option value="@time.value">@time.Display</option>
+                        }
                     </InputSelect>
                 </div>
             </div>
@@ -325,6 +310,27 @@
     private string errorMessage = "";
     private string successMessage = "";
 
+    private List<TimeSlot> GetTimeSlots()
+    {
+        var timeSlots = new List<TimeSlot>();
+        var startTime = new TimeSpan(8, 0, 0); 
+        var endTime = new TimeSpan(19, 0, 0); 
+        var interval = new TimeSpan(0, 30, 0);
+        for (var time = startTime; time <= endTime; time = time.Add(interval))
+        {
+            timeSlots.Add(new TimeSlot
+            {
+                value = time.ToString(@"hh\:mm"),
+                Display = time.ToString(@"hh\:mm")
+            });
+        }
+        return timeSlots;
+    }
+    public class TimeSlot
+    {
+        public string value { get; set; } = "";
+        public string Display { get; set; } = "";
+    }
     // === SIMPLE VERSION  ===
     protected override async Task OnInitializedAsync()
     {
