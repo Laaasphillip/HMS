@@ -1,13 +1,14 @@
 using HMS.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using HMS.Models;
 
 
 namespace HMS.Data
 {
-    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser>(options)
     {
+
+
         public DbSet<Patient> Patients { get; set; }
         public DbSet<Staff> Staff { get; set; }
         public DbSet<Appointment> Appointments { get; set; }

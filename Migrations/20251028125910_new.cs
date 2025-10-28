@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace HMS.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class @new : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -167,8 +167,6 @@ namespace HMS.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    FirstName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    LastName = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Dateofbirth = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Address = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Contact = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -194,12 +192,12 @@ namespace HMS.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     ContractForm = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Department = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Taxes = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     Bankdetails = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Vacationdays = table.Column<int>(type: "int", nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Specialization = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     HourlyRate = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     HiredDate = table.Column<DateTime>(type: "datetime2", nullable: false)
@@ -307,7 +305,7 @@ namespace HMS.Migrations
                         column: x => x.ScheduleId,
                         principalTable: "Schedules",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_TimeReports_Staff_StaffId",
                         column: x => x.StaffId,
@@ -488,7 +486,8 @@ namespace HMS.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_TimeReports_ScheduleId",
                 table: "TimeReports",
-                column: "ScheduleId");
+                column: "ScheduleId",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_TimeReports_StaffId",
