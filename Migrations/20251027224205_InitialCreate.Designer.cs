@@ -4,6 +4,7 @@ using HMS.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HMS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251027224205_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -42,9 +45,11 @@ namespace HMS.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("FirstName")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("LastName")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("LockoutEnabled")
@@ -64,7 +69,7 @@ namespace HMS.Migrations
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("PersonalNumber")
+                    b.Property<int>("PersonalNumber")
                         .HasColumnType("int");
 
                     b.Property<string>("PhoneNumber")
@@ -74,6 +79,7 @@ namespace HMS.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("Role")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecurityStamp")
@@ -263,7 +269,15 @@ namespace HMS.Migrations
                     b.Property<DateTime>("Dateofbirth")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Interests")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -411,8 +425,7 @@ namespace HMS.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ScheduleId")
-                        .IsUnique();
+                    b.HasIndex("ScheduleId");
 
                     b.HasIndex("StaffId");
 
@@ -602,8 +615,7 @@ namespace HMS.Migrations
                     b.HasOne("HMS.Models.Schedule", "Schedule")
                         .WithOne("Appointment")
                         .HasForeignKey("HMS.Models.Appointment", "ScheduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("HMS.Models.Staff", "Staff")
                         .WithMany("Appointments")
@@ -684,9 +696,9 @@ namespace HMS.Migrations
             modelBuilder.Entity("HMS.Models.TimeReport", b =>
                 {
                     b.HasOne("HMS.Models.Schedule", "Schedule")
-                        .WithOne("TimeReport")
-                        .HasForeignKey("HMS.Models.TimeReport", "ScheduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .WithMany()
+                        .HasForeignKey("ScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("HMS.Models.Staff", "Staff")
@@ -792,9 +804,6 @@ namespace HMS.Migrations
             modelBuilder.Entity("HMS.Models.Schedule", b =>
                 {
                     b.Navigation("Appointment")
-                        .IsRequired();
-
-                    b.Navigation("TimeReport")
                         .IsRequired();
                 });
 

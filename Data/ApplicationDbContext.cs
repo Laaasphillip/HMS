@@ -1,12 +1,16 @@
 using HMS.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using HMS.Models;
 
 
 namespace HMS.Data
 {
-    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser>(options)
+    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+        {
+        }
         public DbSet<Patient> Patients { get; set; }
         public DbSet<Staff> Staff { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
@@ -50,12 +54,12 @@ namespace HMS.Data
                 entity.HasOne(e => e.Staff)
                     .WithMany(c => c.Appointments)
                     .HasForeignKey(e => e.StaffId)
-                    .OnDelete(DeleteBehavior.Restrict); 
+                    .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(e => e.Schedule)
                     .WithOne(c => c.Appointment)
                     .HasForeignKey<Appointment>(e => e.ScheduleId)
-                    .OnDelete(DeleteBehavior.Restrict); 
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // SCHEDULE

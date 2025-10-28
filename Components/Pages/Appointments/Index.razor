@@ -1,0 +1,569 @@
+﻿@page "/appointments"
+@using HMS.Data
+@using HMS.Models
+@using Microsoft.EntityFrameworkCore
+
+@* === ROLE-BASED for later === *@
+@* @using Microsoft.AspNetCore.Authorization *@
+@* @using Microsoft.AspNetCore.Identity *@
+@* @using System.Security.Claims *@
+@* @inject AuthenticationStateProvider AuthenticationStateProvider *@
+@* @inject UserManager<ApplicationUser> UserManager *@
+
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+@* === ROLE-BASED for later === *@
+@* @attribute [Authorize] *@
+
+<PageTitle>Appointment Management</PageTitle>
+
+<div class="content-section">
+    <h1 class="page-title">
+        <i class="bi bi-calendar2-check"></i> Appointment Management
+    </h1>
+
+    @* === WARNING, REMOVE WHEN LIVE === *@
+    <div class="alert alert-warning">
+        <strong>⚠️ TEST MODE:</strong> Login disabled for testing. Role-based restrictions are commented out.
+    </div>
+
+    @* ==== ROLE-BASED for later ===*@
+    @* <AuthorizeView Context="auth"> *@
+    @*     <Authorized> *@
+
+    <div class="appointment-form-container">
+        <div class="form-header">
+            @* === SIMPLE VERSION === *@
+            <h3>
+                @if (isEditMode)
+                {
+                    <text>Edit Appointment</text>
+                }
+                else
+                {
+                    <text>Create New Appointment</text>
+                }
+            </h3>
+
+            @* === ROLE-BASED for later ===*@
+            @* <h3>Welcome, @currentUserName! (Role: @currentUserRole)</h3> *@
+
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle-fill"></i> @successMessage
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+                </div>
+            }
+        </div>
+
+        <EditForm Model="currentAppointment" OnValidSubmit="HandleSubmit" class="appointment-form">
+            <DataAnnotationsValidator />
+
+            <div class="form-row">
+                @* === SIMPLE VERSION  === *@
+                <div class="form-group">
+                    <label for="patient-select">
+                        <i class="bi bi-person"></i> Patient *
+                    </label>
+                    <InputSelect id="patient-select" class="form-select" @bind-Value="currentAppointment.PatientId">
+                        <option value="0" disabled selected>Select Patient</option>
+                        @foreach (var patient in patients)
+                        {
+                            <option value="@patient.Id">@patient.User.FirstName @patient.User.LastName</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                @* === SIMPLE VERSION === *@
+                <div class="form-group">
+                    <label for="staff-select">
+                        <i class="bi bi-person-badge"></i> Doctor *
+                    </label>
+                    <InputSelect id="staff-select" class="form-select" @bind-Value="currentAppointment.StaffId">
+                        <option value="0" disabled selected>Select Doctor</option>
+                        @foreach (var staff in staffMembers)
+                        {
+                            <option value="@staff.Id">
+                                Dr. @(staff.User?.FirstName ?? "") @(staff.User?.LastName ?? "") - @staff.Specialization
+                            </option>
+                        }
+                    </InputSelect>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="appointment-date">
+                        <i class="bi bi-calendar-event"></i> Appointment Date *
+                    </label>
+                    <InputDate id="appointment-date"
+                               class="form-input date-input"
+                               @bind-Value="currentAppointment.AppointmentDate"
+                               min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+
+                <div class="form-group">
+                    <label for="appointment-time">
+                        <i class="bi bi-clock"></i> Appointment Time *
+                    </label>
+                    <InputSelect id="appointment-time" class="form-select" @bind-Value="selectedTime">
+                        <option value="">Select Time</option>
+                        @foreach (var time in GetTimeSlots())
+                        {
+                            <option value="@time.value">@time.Display</option>
+                        }
+                    </InputSelect>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="status">
+                        <i class="bi bi-info-circle"></i> Status *
+                    </label>
+                    <InputSelect id="status" class="form-select" @bind-Value="currentAppointment.Status">
+                        <option value="" disabled selected>Select Status</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Confirmed">Confirmed</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </InputSelect>
+                </div>
+                <div class="form-group">
+                    <label for="price">
+                        <i class="bi bi-currency-exchange"></i> Price (SEK)
+                    </label>
+                    <InputNumber id="price"
+                                 class="form-input"
+                                 placeholder="Price"
+                                 @bind-Value="currentAppointment.Price" />
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group full-width">
+                    <label for="reason">
+                        <i class="bi bi-chat-left-text"></i> Reason for Visit *
+                    </label>
+                    <InputText id="reason"
+                               class="form-input"
+                               placeholder="Reason for Visit"
+                               @bind-Value="currentAppointment.Reason" />
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group full-width">
+                    <label for="notes">
+                        <i class="bi bi-journal-text"></i> Additional Notes
+                    </label>
+                    <InputTextArea id="notes"
+                                   class="form-textarea"
+                                   placeholder="Additional Notes (Optional)"
+                                   rows="4"
+                                   @bind-Value="currentAppointment.Notes" />
+                </div>
+            </div>
+
+            <div class="form-actions">
+                @if (isEditMode)
+                {
+                    <button type="button" class="action-btn update-btn" @onclick="HandleUpdate">
+                        <i class="bi bi-check-circle"></i> Update
+                    </button>
+                    <button type="button" class="action-btn delete-btn" @onclick="HandleDelete">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                    <button type="button" class="action-btn" style="background-color: #6c757d;" @onclick="ClearForm">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                }
+                else
+                {
+                    <button type="submit" class="action-btn register-btn">
+                        <i class="bi bi-plus-circle"></i> Create Appointment
+                    </button>
+                    <button type="button" class="action-btn" style="background-color: #6c757d;" @onclick="ClearForm">
+                        <i class="bi bi-arrow-counterclockwise"></i> Clear Form
+                    </button>
+                }
+            </div>
+        </EditForm>
+    </div>
+
+    <section class="recent-appointments">
+        @* === SIMPLE VERSION === *@
+        <h2 class="section-title">
+            <i class="bi bi-list-check"></i> All Appointments
+        </h2>
+        <p class="section-description">View and manage all appointments in the system</p>
+
+        @if (isLoading)
+        {
+            <p>Loading appointments...</p>
+        }
+        else if (appointments.Count == 0)
+        {
+            <p>No appointments found.</p>
+        }
+        else
+        {
+            <div class="appointments-table-container">
+                <div class="appointments-table">
+                    <div class="table-header">
+                        <div class="table-cell header-cell">ID</div>
+                        <div class="table-cell header-cell">Patient</div>
+                        <div class="table-cell header-cell">Doctor</div>
+                        <div class="table-cell header-cell">Date & Time</div>
+                        <div class="table-cell header-cell">Duration</div>
+                        <div class="table-cell header-cell">Reason</div>
+                        <div class="table-cell header-cell">Price</div>
+                        <div class="table-cell header-cell">Status</div>
+                        <div class="table-cell header-cell">Actions</div>
+                    </div>
+
+                    @foreach (var appointment in appointments)
+                    {
+                        <div class="table-row">
+                            <div class="table-cell">#@appointment.Id</div>
+                            <div class="table-cell">
+                                <i class="bi bi-person-circle"></i> @appointment.Patient?.User.FirstName @appointment.Patient?.User.LastName
+                            </div>
+                            <div class="table-cell">
+                                <i class="bi bi-person-badge"></i> Dr. @(appointment.Staff?.User?.FirstName ?? "") @(appointment.Staff?.User?.LastName ?? "")
+                                <small>(@appointment.Staff?.Specialization)</small>
+                            </div>
+                            <div class="table-cell">@appointment.AppointmentDate.ToString("MMM dd, yyyy HH:mm")</div>
+                            <div class="table-cell">@appointment.DurationMinutes min</div>
+                            <div class="table-cell">@appointment.Reason</div>
+                            <div class="table-cell">@appointment.Price.ToString("C")</div>
+                            <div class="table-cell">
+                                <span class="status-badge status-@appointment.Status?.ToLower()">
+                                    @appointment.Status
+                                </span>
+                            </div>
+                            <div class="table-cell">
+                                <button type="button"
+                                        class="delete-icon-btn"
+                                        @onclick="() => SelectAppointmentForEdit(appointment)"
+                                        title="Edit">
+                                    ✏️
+                                </button>
+                                <button type="button"
+                                        class="delete-icon-btn"
+                                        @onclick="() => SelectAppointmentForDelete(appointment.Id)"
+                                        title="Delete">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+
+    @* === ROLE-BASED for later === *@
+    @*     </Authorized> *@
+    @*     <NotAuthorized> *@
+    @*         <div class="appointment-form-container"> *@
+    @*             <div class="text-center py-5"> *@
+    @*                 <h2>Please Log In to Access Appointments</h2> *@
+    @*                 <p class="lead">You must be logged in to view and manage appointments.</p> *@
+    @*                 <a href="Account/Login?returnUrl=/appointments" class="action-btn register-btn"> *@
+    @*                     Log In *@
+    @*                 </a> *@
+    @*                 <p class="mt-3">Don't have an account?  *@
+    @*                     <a href="Account/Register">Register here</a> *@
+    @*                 </p> *@
+    @*             </div> *@
+    @*         </div> *@
+    @*     </NotAuthorized> *@
+    @* </AuthorizeView> *@
+</div>
+
+@code {
+
+    private List<Appointment> appointments = new();
+    private List<Patient> patients = new();
+    private List<Staff> staffMembers = new();
+    private Appointment currentAppointment = new();    
+    private string selectedTime = "";
+
+    // === ROLE-BASED for later ===
+    // private string currentUserId = "";
+    // private string currentUserName = "";
+    // private string currentUserRole = "";
+    // private int currentPatientId = 0;
+    // private int currentStaffId = 0;
+    // private string currentStaffSpecialization = "";
+    private bool isLoading = true;
+    private bool isEditMode = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+
+    private List<TimeSlot> GetTimeSlots()
+    {
+        var timeSlots = new List<TimeSlot>();
+        var startTime = new TimeSpan(8, 0, 0); 
+        var endTime = new TimeSpan(19, 0, 0); 
+        var interval = new TimeSpan(0, 30, 0);
+        for (var time = startTime; time <= endTime; time = time.Add(interval))
+        {
+            timeSlots.Add(new TimeSlot
+            {
+                value = time.ToString(@"hh\:mm"),
+                Display = time.ToString(@"hh\:mm")
+            });
+        }
+        return timeSlots;
+    }
+    public class TimeSlot
+    {
+        public string value { get; set; } = "";
+        public string Display { get; set; } = "";
+    }
+    // === SIMPLE VERSION  ===
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    // === SIMPLE VERSION ===
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+
+            appointments = await DbContext.Appointments
+                .Include(a => a.Patient)
+                .Include(a => a.Staff)
+                    .ThenInclude(s => s.User) 
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
+
+            patients = await DbContext.Patients.ToListAsync();
+            staffMembers = await DbContext.Staff
+                .Include(s => s.User)  
+                .ToListAsync();
+
+            isLoading = false;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading data: {ex.Message}";
+            isLoading = false;
+        }
+    }
+
+    // === SIMPLE VERSION  NO ROLES ===
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            if (currentAppointment.PatientId == 0 || currentAppointment.StaffId == 0)
+            {
+                errorMessage = "Please select both patient and doctor.";
+                return;
+            }
+
+            
+            if (string.IsNullOrEmpty(selectedTime))
+            {
+                errorMessage = "Please select appointment time.";
+                return;
+            }
+
+            if (currentAppointment.AppointmentDate == DateTime.MinValue)
+            {
+                errorMessage = "Please select appointment date.";
+                return;
+            }
+
+            
+            var timeParts = selectedTime.Split(':');
+            var hours = int.Parse(timeParts[0]);
+            var minutes = int.Parse(timeParts[1]);
+
+            currentAppointment.AppointmentDate = currentAppointment.AppointmentDate.Date
+                .AddHours(hours)
+                .AddMinutes(minutes);
+
+            
+            if (currentAppointment.DurationMinutes == 0)
+            {
+                currentAppointment.DurationMinutes = 30;
+            }
+
+            if (string.IsNullOrEmpty(currentAppointment.Status))
+            {
+                currentAppointment.Status = "Pending";
+            }
+
+            currentAppointment.CreatedAt = DateTime.Now;
+            currentAppointment.UpdatedAt = DateTime.Now;
+            currentAppointment.CreatedBy = "TestUser";
+
+            DbContext.Appointments.Add(currentAppointment);
+            await DbContext.SaveChangesAsync();
+
+            successMessage = "Appointment created successfully!";
+            errorMessage = "";
+
+            ClearForm();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating appointment: {ex.Message}";
+            successMessage = "";
+        }
+    }
+
+    private async Task HandleUpdate()
+    {
+        try
+        {
+            if (currentAppointment.Id == 0)
+            {
+                errorMessage = "Please select an appointment to update.";
+                return;
+            }
+
+            var existingAppointment = await DbContext.Appointments
+                .FirstOrDefaultAsync(a => a.Id == currentAppointment.Id);
+
+            if (existingAppointment == null)
+            {
+                errorMessage = "Appointment not found.";
+                return;
+            }
+
+            // ⭐ NYTT: Kombinera datum + tid vid update
+            if (!string.IsNullOrEmpty(selectedTime))
+            {
+                var timeParts = selectedTime.Split(':');
+                var hours = int.Parse(timeParts[0]);
+                var minutes = int.Parse(timeParts[1]);
+
+                currentAppointment.AppointmentDate = currentAppointment.AppointmentDate.Date
+                    .AddHours(hours)
+                    .AddMinutes(minutes);
+            }
+
+            existingAppointment.PatientId = currentAppointment.PatientId;
+            existingAppointment.StaffId = currentAppointment.StaffId;
+            existingAppointment.AppointmentDate = currentAppointment.AppointmentDate;
+            existingAppointment.DurationMinutes = currentAppointment.DurationMinutes;
+            existingAppointment.Status = currentAppointment.Status;
+            existingAppointment.Reason = currentAppointment.Reason;
+            existingAppointment.Notes = currentAppointment.Notes;
+            existingAppointment.Price = currentAppointment.Price;
+            existingAppointment.UpdatedAt = DateTime.Now;
+
+            await DbContext.SaveChangesAsync();
+
+            successMessage = "Appointment updated successfully!";
+            errorMessage = "";
+
+            ClearForm();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating appointment: {ex.Message}";
+            successMessage = "";
+        }
+    }
+
+    private async Task HandleDelete()
+    {
+        try
+        {
+            if (currentAppointment.Id == 0)
+            {
+                errorMessage = "Please select an appointment to delete.";
+                return;
+            }
+
+            var appointmentToDelete = await DbContext.Appointments
+                .FirstOrDefaultAsync(a => a.Id == currentAppointment.Id);
+
+            if (appointmentToDelete == null)
+            {
+                errorMessage = "Appointment not found.";
+                return;
+            }
+
+            DbContext.Appointments.Remove(appointmentToDelete);
+            await DbContext.SaveChangesAsync();
+
+            successMessage = "Appointment deleted successfully!";
+            errorMessage = "";
+
+            ClearForm();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting appointment: {ex.Message}";
+            successMessage = "";
+        }
+    }
+
+    private void SelectAppointmentForEdit(Appointment appointment)
+    {
+        currentAppointment = new Appointment
+        {
+            Id = appointment.Id,
+            PatientId = appointment.PatientId,
+            StaffId = appointment.StaffId,
+            AppointmentDate = appointment.AppointmentDate,
+            DurationMinutes = appointment.DurationMinutes,
+            Status = appointment.Status,
+            Reason = appointment.Reason,
+            Notes = appointment.Notes,
+            Price = appointment.Price,
+            ScheduleId = appointment.ScheduleId,
+            CreatedBy = appointment.CreatedBy,
+            CreatedAt = appointment.CreatedAt
+        };
+
+        
+        selectedTime = appointment.AppointmentDate.ToString("HH:mm");
+
+        isEditMode = true;
+        successMessage = "Appointment loaded. Update the fields and click Update.";
+        errorMessage = "";
+    }
+
+    private void SelectAppointmentForDelete(int id)
+    {
+        var appointment = appointments.FirstOrDefault(a => a.Id == id);
+
+        if (appointment != null)
+        {
+            currentAppointment.Id = id;
+            errorMessage = "";
+            successMessage = $"Appointment {id} selected. Click Delete to confirm.";
+        }
+    }
+
+    private void ClearForm()
+    {
+        currentAppointment = new Appointment();
+        selectedTime = ""; 
+        isEditMode = false;
+        errorMessage = "";
+        successMessage = "";
+    }
+}
