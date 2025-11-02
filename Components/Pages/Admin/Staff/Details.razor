@@ -1,0 +1,231 @@
+﻿@page "/admin/staff/view/{StaffId:int}"
+@using HMS.Models
+@using HMS.Services
+@inject AdminService AdminService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            @if (isLoading)
+            {
+                <div class="text-center p-5">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    @errorMessage
+                </div>
+                <button class="btn btn-secondary" @onclick="GoBack">
+                    <i class="bi bi-arrow-left me-1"></i> Back to List
+                </button>
+            }
+            else if (staff != null)
+            {
+                <!-- Header Card -->
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h4 class="mb-0">
+                                <i class="bi bi-person-badge me-2"></i>
+                                Staff Details - @staff.User?.FirstName @staff.User?.LastName
+                            </h4>
+                            <div>
+                                <button class="btn btn-light btn-sm me-2" @onclick="EditStaff">
+                                    <i class="bi bi-pencil me-1"></i> Edit
+                                </button>
+                                <button class="btn btn-outline-light btn-sm" @onclick="GoBack">
+                                    <i class="bi bi-arrow-left me-1"></i> Back
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Personal Information -->
+                            <div class="col-md-6 mb-3">
+                                <h5 class="text-success border-bottom pb-2 mb-3">
+                                    <i class="bi bi-person-circle me-2"></i>Personal Information
+                                </h5>
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-bold" style="width: 40%;">Staff ID:</td>
+                                            <td>@staff.Id</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">First Name:</td>
+                                            <td>@staff.User?.FirstName</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Last Name:</td>
+                                            <td>@staff.User?.LastName</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Role:</td>
+                                            <td>
+                                                <span class="badge bg-success">@staff.User?.Role</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Specialization:</td>
+                                            <td>@staff.Specialization</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Personal Number:</td>
+                                            <td>@(staff.User?.PersonalNumber?.ToString() ?? "N/A")</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Contact Information -->
+                            <div class="col-md-6 mb-3">
+                                <h5 class="text-success border-bottom pb-2 mb-3">
+                                    <i class="bi bi-telephone me-2"></i>Contact Information
+                                </h5>
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-bold" style="width: 40%;">Email:</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(staff.User?.Email))
+                                                {
+                                                    <a href="mailto:@staff.User.Email">@staff.User.Email</a>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">N/A</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Phone:</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(staff.User?.PhoneNumber))
+                                                {
+                                                    <a href="tel:@staff.User.PhoneNumber">@staff.User.PhoneNumber</a>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">N/A</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Employment Information -->
+                            <div class="col-md-6 mb-3">
+                                <h5 class="text-success border-bottom pb-2 mb-3">
+                                    <i class="bi bi-briefcase me-2"></i>Employment Information
+                                </h5>
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-bold" style="width: 40%;">Department:</td>
+                                            <td>@(staff.Department ?? "N/A")</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Contract Form:</td>
+                                            <td>@(staff.ContractForm ?? "N/A")</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Hired Date:</td>
+                                            <td>@staff.HiredDate.ToString("MMMM dd, yyyy")</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Hourly Rate:</td>
+                                            <td>@staff.HourlyRate.ToString("C") SEK</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Vacation Days:</td>
+                                            <td>@staff.Vacationdays days</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Financial Information -->
+                            <div class="col-md-6 mb-3">
+                                <h5 class="text-success border-bottom pb-2 mb-3">
+                                    <i class="bi bi-currency-exchange me-2"></i>Financial Information
+                                </h5>
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-bold" style="width: 40%;">Tax Rate:</td>
+                                            <td>@staff.Taxes%</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Bank Details:</td>
+                                            <td>@(staff.Bankdetails ?? "N/A")</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int StaffId { get; set; }
+
+    private Staff? staff;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStaffDetailsAsync();
+    }
+
+    private async Task LoadStaffDetailsAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            staff = await AdminService.GetStaffByIdAsync(StaffId);
+
+            if (staff == null)
+            {
+                errorMessage = "Staff member not found";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading staff details: {ex.Message}";
+            Console.WriteLine($"Error in LoadStaffDetailsAsync: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void EditStaff()
+    {
+        Navigation.NavigateTo($"/Admin/Staff/Edit/{StaffId}");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/Admin/Staff");
+    }
+}

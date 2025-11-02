@@ -1,8 +1,11 @@
 ﻿@page "/admin/schedule"
-@rendermode InteractiveServer
+@using HMS.Models
+@using HMS.Services
+@inject AdminService AdminService
 @inject NavigationManager Navigation
 @using Radzen
 @using Radzen.Blazor
+@rendermode InteractiveServer
 
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -335,123 +338,72 @@
         public string Text { get; set; } = string.Empty;
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        LoadStaffList();
-        LoadSchedules();
+        await LoadStaffListAsync();
+        await LoadSchedulesAsync();
         FilterSchedules();
     }
 
-    private void LoadStaffList()
+    private async Task LoadStaffListAsync()
     {
-        staffList = new List<StaffItem>
+        try
         {
-            new StaffItem { Value = 0, Text = "All Staff" },
-            new StaffItem { Value = 2001, Text = "Dr. Sarah Williams (Doctor)" },
-            new StaffItem { Value = 2002, Text = "Dr. James Peterson (Doctor)" },
-            new StaffItem { Value = 2003, Text = "Nurse Maria Karlsson (Nurse)" },
-            new StaffItem { Value = 2004, Text = "Dr. Henrik Olsson (Doctor)" },
-            new StaffItem { Value = 2005, Text = "Nurse Emma Nilsson (Nurse)" },
-            new StaffItem { Value = 2006, Text = "Dr. Linda Gustafsson (Doctor)" }
-        };
+            var staffMembers = await AdminService.GetAllStaffAsync();
+            staffList = new List<StaffItem>
+            {
+                new StaffItem { Value = 0, Text = "All Staff" }
+            };
+
+            foreach (var staff in staffMembers)
+            {
+                var firstName = staff.User?.FirstName ?? "";
+                var lastName = staff.User?.LastName ?? "";
+                var fullName = $"{firstName} {lastName}".Trim();
+                var role = staff.User?.Role ?? "N/A";
+
+                staffList.Add(new StaffItem
+                {
+                    Value = staff.Id,
+                    Text = $"{fullName} ({role})"
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading staff list: {ex.Message}");
+            staffList = new List<StaffItem>
+            {
+                new StaffItem { Value = 0, Text = "All Staff" }
+            };
+        }
     }
 
-    private void LoadSchedules()
+    private async Task LoadSchedulesAsync()
     {
-        // Sample data - replace with database calls
-        allSchedules = new List<AppointmentData>
+        try
         {
-            new AppointmentData
+            var schedules = await AdminService.GetAllSchedulesAsync();
+            allSchedules = schedules.Select(s => new AppointmentData
             {
-                ScheduleId = 1,
-                Start = DateTime.Today.AddHours(9),
-                End = DateTime.Today.AddHours(12),
-                StaffId = 2001,
-                StaffName = "Dr. Sarah Williams",
-                Role = "Doctor",
-                Text = "Dr. Sarah Williams - Morning Shift",
-                Status = "Booked",
-                PatientName = "Emma Johnson"
-            },
-            new AppointmentData
-            {
-                ScheduleId = 2,
-                Start = DateTime.Today.AddHours(13),
-                End = DateTime.Today.AddHours(17),
-                StaffId = 2001,
-                StaffName = "Dr. Sarah Williams",
-                Role = "Doctor",
-                Text = "Dr. Sarah Williams - Afternoon Shift",
-                Status = "Available"
-            },
-            new AppointmentData
-            {
-                ScheduleId = 3,
-                Start = DateTime.Today.AddHours(10),
-                End = DateTime.Today.AddHours(14),
-                StaffId = 2002,
-                StaffName = "Dr. James Peterson",
-                Role = "Doctor",
-                Text = "Dr. James Peterson - Shift",
-                Status = "Available"
-            },
-            new AppointmentData
-            {
-                ScheduleId = 4,
-                Start = DateTime.Today.AddHours(8),
-                End = DateTime.Today.AddHours(16),
-                StaffId = 2003,
-                StaffName = "Nurse Maria Karlsson",
-                Role = "Nurse",
-                Text = "Nurse Maria Karlsson - Full Day",
-                Status = "Blocked"
-            },
-            new AppointmentData
-            {
-                ScheduleId = 5,
-                Start = DateTime.Today.AddDays(1).AddHours(9),
-                End = DateTime.Today.AddDays(1).AddHours(17),
-                StaffId = 2001,
-                StaffName = "Dr. Sarah Williams",
-                Role = "Doctor",
-                Text = "Dr. Sarah Williams - Full Day",
-                Status = "Available"
-            },
-            new AppointmentData
-            {
-                ScheduleId = 6,
-                Start = DateTime.Today.AddDays(-1).AddHours(9),
-                End = DateTime.Today.AddDays(-1).AddHours(13),
-                StaffId = 2002,
-                StaffName = "Dr. James Peterson",
-                Role = "Doctor",
-                Text = "Dr. James Peterson - Morning",
-                Status = "Booked",
-                PatientName = "Lars Svensson"
-            },
-            new AppointmentData
-            {
-                ScheduleId = 7,
-                Start = DateTime.Today.AddDays(2).AddHours(10),
-                End = DateTime.Today.AddDays(2).AddHours(15),
-                StaffId = 2004,
-                StaffName = "Dr. Henrik Olsson",
-                Role = "Doctor",
-                Text = "Dr. Henrik Olsson - Shift",
-                Status = "Available"
-            },
-            new AppointmentData
-            {
-                ScheduleId = 8,
-                Start = DateTime.Today.AddDays(1).AddHours(8),
-                End = DateTime.Today.AddDays(1).AddHours(16),
-                StaffId = 2005,
-                StaffName = "Nurse Emma Nilsson",
-                Role = "Nurse",
-                Text = "Nurse Emma Nilsson - Full Day",
-                Status = "Available"
-            }
-        };
+                ScheduleId = s.Id,
+                Start = s.StartTime,
+                End = s.EndTime,
+                StaffId = s.StaffId,
+                StaffName = s.Staff?.User != null
+                    ? $"{s.Staff.User.FirstName} {s.Staff.User.LastName}".Trim()
+                    : "N/A",
+                Role = s.Staff?.User?.Role ?? "N/A",
+                Text = $"{(s.Staff?.User != null ? $"{s.Staff.User.FirstName} {s.Staff.User.LastName}".Trim() : "N/A")} - {s.ShiftType ?? "Shift"}",
+                Status = s.Status ?? "Available",
+                PatientName = null // Will be populated if appointment exists
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading schedules: {ex.Message}");
+            allSchedules = new List<AppointmentData>();
+        }
     }
 
     private void FilterSchedules()
@@ -479,8 +431,8 @@
 
     private void OnAppointmentSelect(SchedulerAppointmentSelectEventArgs<AppointmentData> args)
     {
-        // When user clicks on an appointment - navigate to edit page
-        Navigation.NavigateTo($"/admin/schedule/edit/{args.Data.ScheduleId}");
+        // When user clicks on an appointment - navigate to details page
+        Navigation.NavigateTo($"/admin/schedule/details/{args.Data.ScheduleId}");
     }
 
     private void OnAppointmentRender(SchedulerAppointmentRenderEventArgs<AppointmentData> args)

@@ -1,7 +1,10 @@
 ﻿@page "/admin/schedule/edit/{ScheduleId:int}"
-@rendermode InteractiveServer
-@inject NavigationManager Navigation
+@using HMS.Models
+@using HMS.Services
 @using System.ComponentModel.DataAnnotations
+@inject AdminService AdminService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
 
 <div class="container mt-4">
     <div class="row justify-content-center">
@@ -22,6 +25,16 @@
                             </div>
                         </div>
                     }
+                    else if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            @errorMessage
+                        </div>
+                        <button class="btn btn-secondary" @onclick="Cancel">
+                            <i class="bi bi-arrow-left me-1"></i> Back to List
+                        </button>
+                    }
                     else
                     {
                         <EditForm Model="@schedule" OnValidSubmit="HandleSubmit">
@@ -32,7 +45,7 @@
                                 <!-- Schedule ID (Read-only) -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Schedule ID</label>
-                                    <input type="text" class="form-control" value="@schedule.ScheduleId" disabled />
+                                    <input type="text" class="form-control" value="@ScheduleId" disabled />
                                 </div>
 
                                 <!-- Staff Selection -->
@@ -42,7 +55,7 @@
                                         <option value="0">Select Staff</option>
                                         @foreach (var staff in staffList)
                                         {
-                                            <option value="@staff.StaffId">@staff.FullName (@staff.Role)</option>
+                                            <option value="@staff.Id">@staff.FullName (@staff.Role)</option>
                                         }
                                     </InputSelect>
                                     <ValidationMessage For="@(() => schedule.StaffId)" />
@@ -55,10 +68,62 @@
                                     <ValidationMessage For="@(() => schedule.ScheduleDate)" />
                                 </div>
 
+                                <!-- Shift Type -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Shift Type</label>
+                                    <InputSelect @bind-Value="schedule.ShiftType" class="form-select">
+                                        <option value="">Select Shift Type</option>
+                                        <option value="Morning">Morning</option>
+                                        <option value="Afternoon">Afternoon</option>
+                                        <option value="Evening">Evening</option>
+                                        <option value="Night">Night</option>
+                                        <option value="Full Day">Full Day</option>
+                                    </InputSelect>
+                                </div>
+
+                                <!-- Start Time -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Start Time *</label>
+                                    <input type="time"
+                                           class="form-control"
+                                           value="@schedule.StartTime.ToString(@"HH\:mm")"
+                                           @onchange="@((ChangeEventArgs e) => schedule.StartTime = TimeSpan.Parse(e.Value.ToString()))" />
+                                    <ValidationMessage For="@(() => schedule.StartTime)" />
+                                </div>
+
+                                <!-- End Time -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">End Time *</label>
+                                    <input type="time"
+                                           class="form-control"
+                                           value="@schedule.EndTime.ToString(@"HH\:mm")"
+                                           @onchange="@((ChangeEventArgs e) => schedule.EndTime = TimeSpan.Parse(e.Value.ToString()))" />
+                                    <ValidationMessage For="@(() => schedule.EndTime)" />
+                                </div>
+
+                                <!-- Break Start Time -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Break Start Time</label>
+                                    <input type="time"
+                                           class="form-control"
+                                           value="@schedule.BreakStartTime.ToString(@"HH\:mm")"
+                                           @onchange="@((ChangeEventArgs e) => schedule.BreakStartTime = TimeSpan.Parse(e.Value.ToString()))" />
+                                </div>
+
+                                <!-- Break End Time -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Break End Time</label>
+                                    <input type="time"
+                                           class="form-control"
+                                           value="@schedule.BreakEndTime.ToString(@"HH\:mm")"
+                                           @onchange="@((ChangeEventArgs e) => schedule.BreakEndTime = TimeSpan.Parse(e.Value.ToString()))" />
+                                </div>
+
                                 <!-- Status -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Status *</label>
                                     <InputSelect @bind-Value="schedule.Status" class="form-select">
+                                        <option value="">Select Status</option>
                                         <option value="Available">Available</option>
                                         <option value="Booked">Booked</option>
                                         <option value="Blocked">Blocked</option>
@@ -68,54 +133,21 @@
                                     <ValidationMessage For="@(() => schedule.Status)" />
                                 </div>
 
-                                <!-- Start Time -->
+                                <!-- Is Available -->
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Start Time *</label>
-                                    <input type="time"
-                                           value="@schedule.StartTime.ToString(@"hh\:mm")"
-                                           @onchange="@((ChangeEventArgs e) => schedule.StartTime = TimeSpan.Parse(e.Value.ToString()))" />
-                                    <ValidationMessage For="@(() => schedule.StartTime)" />
-                                </div>
-
-                                <!-- End Time -->
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">End Time *</label>
-                                    <input type="time"
-                                           value="@schedule.EndTime.ToString(@"hh\:mm")"
-                                           @onchange="@((ChangeEventArgs e) => schedule.EndTime = TimeSpan.Parse(e.Value.ToString()))" />
-                                    <ValidationMessage For="@(() => schedule.EndTime)" />
+                                    <label class="form-label">Availability</label>
+                                    <div class="form-check mt-2">
+                                        <InputCheckbox @bind-Value="schedule.IsAvailable" class="form-check-input" id="isAvailable" />
+                                        <label class="form-check-label" for="isAvailable">
+                                            Mark as available for appointments
+                                        </label>
+                                    </div>
                                 </div>
 
                                 <!-- Duration (Calculated, Read-only) -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Duration</label>
-                                    <input type="text" class="form-control" value="@CalculateDuration() minutes" disabled />
-                                </div>
-
-                                <!-- Patient (if booked) -->
-                                @if (schedule.Status == "Booked")
-                                {
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Patient</label>
-                                        <InputSelect @bind-Value="schedule.PatientId" class="form-select">
-                                            <option value="0">No Patient</option>
-                                            @foreach (var patient in patientList)
-                                            {
-                                                <option value="@patient.PatientId">@patient.FullName</option>
-                                            }
-                                        </InputSelect>
-                                    </div>
-
-                                    <div class="col-md-12 mb-3">
-                                        <label class="form-label">Appointment Reason</label>
-                                        <InputText @bind-Value="schedule.AppointmentReason" class="form-control" placeholder="Reason for appointment" />
-                                    </div>
-                                }
-
-                                <!-- Notes -->
-                                <div class="col-md-12 mb-3">
-                                    <label class="form-label">Notes</label>
-                                    <InputTextArea @bind-Value="schedule.Notes" class="form-control" rows="3" placeholder="Any additional notes..." />
+                                    <input type="text" class="form-control" value="@CalculateDuration() hours" disabled />
                                 </div>
 
                                 <!-- Created At (Read-only) -->
@@ -123,22 +155,7 @@
                                     <label class="form-label">Created At</label>
                                     <input type="text" class="form-control" value="@schedule.CreatedAt.ToString("yyyy-MM-dd HH:mm")" disabled />
                                 </div>
-
-                                <!-- Last Updated (Read-only) -->
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Last Updated</label>
-                                    <input type="text" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd HH:mm")" disabled />
-                                </div>
                             </div>
-
-                            <!-- Status Alert -->
-                            @if (schedule.Status == "Booked" && schedule.PatientId == 0)
-                            {
-                                <div class="alert alert-warning">
-                                    <i class="bi bi-exclamation-triangle me-2"></i>
-                                    Status is marked as "Booked" but no patient is assigned.
-                                </div>
-                            }
 
                             <!-- Action Buttons -->
                             <div class="d-flex gap-2 mt-4">
@@ -148,12 +165,9 @@
                                 <button type="button" class="btn btn-secondary" @onclick="Cancel">
                                     <i class="bi bi-x-circle me-1"></i> Cancel
                                 </button>
-                                @if (schedule.Status == "Available")
-                                {
-                                    <button type="button" class="btn btn-success ms-auto" @onclick="BookAppointment">
-                                        <i class="bi bi-calendar-check me-1"></i> Book Appointment
-                                    </button>
-                                }
+                                <button type="button" class="btn btn-info ms-auto" @onclick="ViewDetails">
+                                    <i class="bi bi-eye me-1"></i> View Details
+                                </button>
                             </div>
                         </EditForm>
                     }
@@ -169,103 +183,128 @@
 
     public class StaffSummary
     {
-        public int StaffId { get; set; }
+        public int Id { get; set; }
         public string FullName { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
     }
 
-    public class PatientSummary
-    {
-        public int PatientId { get; set; }
-        public string FullName { get; set; } = string.Empty;
-    }
-
     private ScheduleEditModel schedule = new();
     private List<StaffSummary> staffList = new();
-    private List<PatientSummary> patientList = new();
     private bool isLoading = true;
+    private string? errorMessage;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        LoadStaffList();
-        LoadPatientList();
-        LoadScheduleData();
-        isLoading = false;
+        await LoadStaffListAsync();
+        await LoadScheduleDataAsync();
     }
 
-    private void LoadStaffList()
+    private async Task LoadStaffListAsync()
     {
-        staffList = new List<StaffSummary>
+        try
         {
-            new StaffSummary { StaffId = 2001, FullName = "Dr. Sarah Williams", Role = "Doctor" },
-            new StaffSummary { StaffId = 2002, FullName = "Dr. James Peterson", Role = "Doctor" },
-            new StaffSummary { StaffId = 2003, FullName = "Nurse Maria Karlsson", Role = "Nurse" },
-            new StaffSummary { StaffId = 2004, FullName = "Dr. Henrik Olsson", Role = "Doctor" },
-            new StaffSummary { StaffId = 2005, FullName = "Nurse Emma Nilsson", Role = "Nurse" }
-        };
+            var staffMembers = await AdminService.GetAllStaffAsync();
+            staffList = staffMembers.Select(s => new StaffSummary
+            {
+                Id = s.Id,
+                FullName = s.User != null ? $"{s.User.FirstName} {s.User.LastName}".Trim() : "N/A",
+                Role = s.User?.Role ?? "N/A"
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading staff list: {ex.Message}");
+            staffList = new List<StaffSummary>();
+        }
     }
 
-    private void LoadPatientList()
+    private async Task LoadScheduleDataAsync()
     {
-        patientList = new List<PatientSummary>
-        {
-            new PatientSummary { PatientId = 1001, FullName = "Emma Johnson" },
-            new PatientSummary { PatientId = 1002, FullName = "Michael Anderson" },
-            new PatientSummary { PatientId = 1003, FullName = "Sofia Bergström" },
-            new PatientSummary { PatientId = 1004, FullName = "Lars Svensson" },
-            new PatientSummary { PatientId = 1005, FullName = "Anna Lindqvist" }
-        };
-    }
+        isLoading = true;
+        errorMessage = null;
 
-    private void LoadScheduleData()
-    {
-        // In real app, fetch from database
-        schedule = ScheduleId switch
+        try
         {
-            1 => new ScheduleEditModel
+            var dbSchedule = await AdminService.GetScheduleByIdAsync(ScheduleId);
+
+            if (dbSchedule == null)
             {
-                ScheduleId = 1,
-                StaffId = 2001,
-                ScheduleDate = DateTime.Today,
-                StartTime = new TimeSpan(9, 0, 0),
-                EndTime = new TimeSpan(10, 0, 0),
-                Status = "Booked",
-                PatientId = 1001,
-                AppointmentReason = "Regular Checkup",
-                CreatedAt = DateTime.Today.AddDays(-7)
-            },
-            2 => new ScheduleEditModel
-            {
-                ScheduleId = 2,
-                StaffId = 2001,
-                ScheduleDate = DateTime.Today,
-                StartTime = new TimeSpan(10, 0, 0),
-                EndTime = new TimeSpan(11, 0, 0),
-                Status = "Available",
-                CreatedAt = DateTime.Today.AddDays(-7)
-            },
-            _ => new ScheduleEditModel
-            {
-                ScheduleId = ScheduleId,
-                StaffId = 2001,
-                ScheduleDate = DateTime.Today,
-                StartTime = new TimeSpan(9, 0, 0),
-                EndTime = new TimeSpan(10, 0, 0),
-                Status = "Available",
-                CreatedAt = DateTime.Today
+                errorMessage = "Schedule not found";
+                schedule = new ScheduleEditModel();
+                return;
             }
-        };
+
+            // Map database model to edit model
+            schedule = new ScheduleEditModel
+            {
+                Id = dbSchedule.Id,
+                StaffId = dbSchedule.StaffId,
+                ScheduleDate = dbSchedule.StartTime.Date,
+                StartTime = dbSchedule.StartTime.TimeOfDay,
+                EndTime = dbSchedule.EndTime.TimeOfDay,
+                BreakStartTime = dbSchedule.BreakStart.TimeOfDay,
+                BreakEndTime = dbSchedule.BreakEnd.TimeOfDay,
+                ShiftType = dbSchedule.ShiftType ?? "",
+                Status = dbSchedule.Status ?? "Available",
+                IsAvailable = dbSchedule.IsAvailable,
+                CreatedAt = dbSchedule.CreatedAt
+            };
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading schedule: {ex.Message}";
+            Console.WriteLine($"Error in LoadScheduleDataAsync: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
-    private int CalculateDuration()
+    private async Task HandleSubmit()
     {
-        return (int)(schedule.EndTime - schedule.StartTime).TotalMinutes;
+        try
+        {
+            // Load the existing schedule from database
+            var dbSchedule = await AdminService.GetScheduleByIdAsync(ScheduleId);
+
+            if (dbSchedule == null)
+            {
+                errorMessage = "Schedule not found";
+                return;
+            }
+
+            // Update schedule properties
+            dbSchedule.StaffId = schedule.StaffId;
+            dbSchedule.StartTime = schedule.ScheduleDate.Add(schedule.StartTime);
+            dbSchedule.EndTime = schedule.ScheduleDate.Add(schedule.EndTime);
+            dbSchedule.BreakStart = schedule.ScheduleDate.Add(schedule.BreakStartTime);
+            dbSchedule.BreakEnd = schedule.ScheduleDate.Add(schedule.BreakEndTime);
+            dbSchedule.ShiftType = schedule.ShiftType;
+            dbSchedule.Status = schedule.Status;
+            dbSchedule.IsAvailable = schedule.IsAvailable;
+
+            var success = await AdminService.UpdateScheduleAsync(dbSchedule);
+
+            if (success)
+            {
+                Navigation.NavigateTo("/Admin/Schedule");
+            }
+            else
+            {
+                errorMessage = "Failed to update schedule";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving schedule: {ex.Message}";
+            Console.WriteLine($"Error in HandleSubmit: {ex}");
+        }
     }
 
-    private void HandleSubmit()
+    private double CalculateDuration()
     {
-        // In real app, save to database
-        Navigation.NavigateTo("/Admin/Schedule");
+        return (schedule.EndTime - schedule.StartTime).TotalHours;
     }
 
     private void Cancel()
@@ -273,14 +312,14 @@
         Navigation.NavigateTo("/Admin/Schedule");
     }
 
-    private void BookAppointment()
+    private void ViewDetails()
     {
-        Navigation.NavigateTo($"/admin/appointment/create?scheduleId={ScheduleId}");
+        Navigation.NavigateTo($"/admin/schedule/details/{ScheduleId}");
     }
 
     public class ScheduleEditModel
     {
-        public int ScheduleId { get; set; }
+        public int Id { get; set; }
 
         [Required(ErrorMessage = "Staff member is required")]
         [Range(1, int.MaxValue, ErrorMessage = "Please select a staff member")]
@@ -296,16 +335,16 @@
         [Required(ErrorMessage = "End time is required")]
         public TimeSpan EndTime { get; set; }
 
+        public TimeSpan BreakStartTime { get; set; }
+
+        public TimeSpan BreakEndTime { get; set; }
+
+        public string ShiftType { get; set; } = string.Empty;
+
         [Required(ErrorMessage = "Status is required")]
         public string Status { get; set; } = string.Empty;
 
-        public int PatientId { get; set; }
-
-        [StringLength(200, ErrorMessage = "Appointment reason cannot exceed 200 characters")]
-        public string? AppointmentReason { get; set; }
-
-        [StringLength(500, ErrorMessage = "Notes cannot exceed 500 characters")]
-        public string? Notes { get; set; }
+        public bool IsAvailable { get; set; }
 
         public DateTime CreatedAt { get; set; }
     }

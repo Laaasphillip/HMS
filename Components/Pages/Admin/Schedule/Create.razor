@@ -1,7 +1,11 @@
 ﻿@page "/admin/schedule/create"
-@rendermode InteractiveServer
-@inject NavigationManager Navigation
+@using HMS.Models
+@using HMS.Services
 @using System.ComponentModel.DataAnnotations
+@inject AdminService AdminService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
 
 <div class="container mt-4">
     <div class="row justify-content-center">
@@ -14,6 +18,14 @@
                     </h4>
                 </div>
                 <div class="card-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            @errorMessage
+                        </div>
+                    }
+
                     <EditForm Model="@schedule" OnValidSubmit="HandleSubmit">
                         <DataAnnotationsValidator />
                         <ValidationSummary class="text-danger mb-3" />
@@ -26,7 +38,7 @@
                                     <option value="0">Select Staff</option>
                                     @foreach (var staff in staffList)
                                     {
-                                        <option value="@staff.StaffId">@staff.FullName (@staff.Role)</option>
+                                        <option value="@staff.Id">@staff.FullName (@staff.Role)</option>
                                     }
                                 </InputSelect>
                                 <ValidationMessage For="@(() => schedule.StaffId)" />
@@ -39,40 +51,17 @@
                                 <ValidationMessage For="@(() => schedule.ScheduleDate)" />
                             </div>
 
-                            <!-- Start Time -->
+                            <!-- Shift Type -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Start Time *</label>
-                                <input type="time"
-                                       value="@schedule.StartTime.ToString(@"hh\:mm")"
-                                       @onchange="@((ChangeEventArgs e) => schedule.StartTime = TimeSpan.Parse(e.Value.ToString()))" />
-                                <ValidationMessage For="@(() => schedule.StartTime)" />
-                            </div>
-
-                            <!-- End Time -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">End Time *</label>
-                                <input type="time"
-                                       value="@schedule.EndTime.ToString(@"hh\:mm")"
-                                       @onchange="@((ChangeEventArgs e) => schedule.EndTime = TimeSpan.Parse(e.Value.ToString()))" />
-                                <ValidationMessage For="@(() => schedule.EndTime)" />
-                            </div>
-
-                            <!-- Start Time -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Break Start Time *</label>
-                                <input type="time"
-                                       value="@schedule.BreakStartTime.ToString(@"hh\:mm")"
-                                       @onchange="@((ChangeEventArgs e) => schedule.BreakStartTime = TimeSpan.Parse(e.Value.ToString()))" />
-                                <ValidationMessage For="@(() => schedule.BreakStartTime)" />
-                            </div>
-
-                            <!-- End Time -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Break End Time *</label>
-                                <input type="time"
-                                       value="@schedule.BreakEndTime.ToString(@"hh\:mm")"
-                                       @onchange="@((ChangeEventArgs e) => schedule.BreakEndTime = TimeSpan.Parse(e.Value.ToString()))" />
-                                <ValidationMessage For="@(() => schedule.BreakEndTime)" />
+                                <label class="form-label">Shift Type</label>
+                                <InputSelect @bind-Value="schedule.ShiftType" class="form-select">
+                                    <option value="">Select Shift Type</option>
+                                    <option value="Morning">Morning</option>
+                                    <option value="Afternoon">Afternoon</option>
+                                    <option value="Evening">Evening</option>
+                                    <option value="Night">Night</option>
+                                    <option value="Full Day">Full Day</option>
+                                </InputSelect>
                             </div>
 
                             <!-- Status -->
@@ -86,75 +75,60 @@
                                 <ValidationMessage For="@(() => schedule.Status)" />
                             </div>
 
-                            <!-- Slot Duration -->
+                            <!-- Start Time -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Slot Duration (minutes)</label>
-                                <InputNumber @bind-Value="schedule.SlotDuration" class="form-control" placeholder="30" />
-                                <small class="form-text text-muted">Leave empty to create single slot</small>
+                                <label class="form-label">Start Time *</label>
+                                <input type="time"
+                                       class="form-control"
+                                       value="@schedule.StartTimeString"
+                                       @onchange="(e) => HandleTimeChange(e, nameof(schedule.StartTimeString))" />
+                                <ValidationMessage For="@(() => schedule.StartTimeString)" />
                             </div>
 
-                            <!-- Recurring Schedule -->
+                            <!-- End Time -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">End Time *</label>
+                                <input type="time"
+                                       class="form-control"
+                                       value="@schedule.EndTimeString"
+                                       @onchange="(e) => HandleTimeChange(e, nameof(schedule.EndTimeString))" />
+                                <ValidationMessage For="@(() => schedule.EndTimeString)" />
+                            </div>
+
+                            <!-- Break Start Time -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Break Start Time</label>
+                                <input type="time"
+                                       class="form-control"
+                                       value="@schedule.BreakStartTimeString"
+                                       @onchange="(e) => HandleTimeChange(e, nameof(schedule.BreakStartTimeString))" />
+                            </div>
+
+                            <!-- Break End Time -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Break End Time</label>
+                                <input type="time"
+                                       class="form-control"
+                                       value="@schedule.BreakEndTimeString"
+                                       @onchange="(e) => HandleTimeChange(e, nameof(schedule.BreakEndTimeString))" />
+                            </div>
+
+                            <!-- Is Available -->
                             <div class="col-md-12 mb-3">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" @bind="schedule.IsRecurring" id="recurring">
-                                    <label class="form-check-label" for="recurring">
-                                        Make this a recurring schedule
+                                    <InputCheckbox @bind-Value="schedule.IsAvailable" class="form-check-input" id="isAvailable" />
+                                    <label class="form-check-label" for="isAvailable">
+                                        Mark as available for appointments
                                     </label>
                                 </div>
                             </div>
-
-                            @if (schedule.IsRecurring)
-                            {
-                                <!-- Recurring Days -->
-                                <div class="col-md-12 mb-3">
-                                    <label class="form-label">Repeat On *</label>
-                                    <div class="btn-group w-100" role="group">
-                                        <input type="checkbox" class="btn-check" id="mon" @bind="schedule.Monday">
-                                        <label class="btn btn-outline-secondary" for="mon">Mon</label>
-
-                                        <input type="checkbox" class="btn-check" id="tue" @bind="schedule.Tuesday">
-                                        <label class="btn btn-outline-secondary" for="tue">Tue</label>
-
-                                        <input type="checkbox" class="btn-check" id="wed" @bind="schedule.Wednesday">
-                                        <label class="btn btn-outline-secondary" for="wed">Wed</label>
-
-                                        <input type="checkbox" class="btn-check" id="thu" @bind="schedule.Thursday">
-                                        <label class="btn btn-outline-secondary" for="thu">Thu</label>
-
-                                        <input type="checkbox" class="btn-check" id="fri" @bind="schedule.Friday">
-                                        <label class="btn btn-outline-secondary" for="fri">Fri</label>
-
-                                        <input type="checkbox" class="btn-check" id="sat" @bind="schedule.Saturday">
-                                        <label class="btn btn-outline-secondary" for="sat">Sat</label>
-
-                                        <input type="checkbox" class="btn-check" id="sun" @bind="schedule.Sunday">
-                                        <label class="btn btn-outline-secondary" for="sun">Sun</label>
-                                    </div>
-                                </div>
-
-                                <!-- End Date -->
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">End Date *</label>
-                                    <InputDate @bind-Value="schedule.RecurringEndDate" class="form-control" />
-                                </div>
-                            }
-
-                            <!-- Notes -->
-                            <div class="col-md-12 mb-3">
-                                <label class="form-label">Notes</label>
-                                <InputTextArea @bind-Value="schedule.Notes" class="form-control" rows="3" placeholder="Any additional notes..." />
-                            </div>
                         </div>
 
-                        <!-- Preview -->
-                        @if (schedule.SlotDuration.HasValue && schedule.SlotDuration > 0)
-                        {
-                            <div class="alert alert-info">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <strong>Schedule Preview:</strong>
-                                This will create @CalculateSlots() time slots of @schedule.SlotDuration minutes each.
-                            </div>
-                        }
+                        <!-- Duration Preview -->
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Schedule Duration:</strong> @CalculateDuration() hours
+                        </div>
 
                         <!-- Action Buttons -->
                         <div class="d-flex gap-2 mt-4">
@@ -175,56 +149,132 @@
 @code {
     public class StaffSummary
     {
-        public int StaffId { get; set; }
+        public int Id { get; set; }
         public string FullName { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
     }
 
-    private ScheduleCreateModel schedule = new()
-    {
-        ScheduleDate = DateTime.Today.AddDays(1),
-        StartTime = new TimeSpan(9, 0, 0),
-        EndTime = new TimeSpan(17, 0, 0),
-        BreakStartTime = new TimeSpan(12, 0, 0),
-        BreakEndTime = new TimeSpan(12, 30, 0),
-        Status = "Available"
-    };
-
+    private ScheduleCreateModel schedule = new();
     private List<StaffSummary> staffList = new();
+    private string? errorMessage;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        LoadStaffList();
+        await LoadStaffListAsync();
     }
 
-    private void LoadStaffList()
+    private async Task LoadStaffListAsync()
     {
-        staffList = new List<StaffSummary>
+        try
         {
-            new StaffSummary { StaffId = 2001, FullName = "Dr. Sarah Williams", Role = "Doctor" },
-            new StaffSummary { StaffId = 2002, FullName = "Dr. James Peterson", Role = "Doctor" },
-            new StaffSummary { StaffId = 2003, FullName = "Nurse Maria Karlsson", Role = "Nurse" },
-            new StaffSummary { StaffId = 2004, FullName = "Dr. Henrik Olsson", Role = "Doctor" },
-            new StaffSummary { StaffId = 2005, FullName = "Nurse Emma Nilsson", Role = "Nurse" },
-            new StaffSummary { StaffId = 2006, FullName = "Dr. Linda Gustafsson", Role = "Doctor" }
-        };
+            var staffMembers = await AdminService.GetAllStaffAsync();
+            staffList = staffMembers.Select(s => new StaffSummary
+            {
+                Id = s.Id,
+                FullName = s.User != null ? $"{s.User.FirstName} {s.User.LastName}".Trim() : "N/A",
+                Role = s.User?.Role ?? "N/A"
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading staff list: {ex.Message}");
+            staffList = new List<StaffSummary>();
+        }
     }
 
-    private int CalculateSlots()
+    private void HandleTimeChange(ChangeEventArgs e, string propertyName)
     {
-        if (!schedule.SlotDuration.HasValue || schedule.SlotDuration.Value == 0)
-            return 0;
+        var timeString = e.Value?.ToString();
 
-        var totalMinutes = (schedule.EndTime - schedule.StartTime).TotalMinutes;
-        return (int)(totalMinutes / schedule.SlotDuration.Value);
+        if (string.IsNullOrEmpty(timeString))
+        {
+            // Set default time or leave as current value
+            return;
+        }
+
+        if (TimeSpan.TryParse(timeString, out var timeSpan))
+        {
+            switch (propertyName)
+            {
+                case nameof(ScheduleCreateModel.StartTimeString):
+                    schedule.StartTimeString = timeString;
+                    break;
+                case nameof(ScheduleCreateModel.EndTimeString):
+                    schedule.EndTimeString = timeString;
+                    break;
+                case nameof(ScheduleCreateModel.BreakStartTimeString):
+                    schedule.BreakStartTimeString = timeString;
+                    break;
+                case nameof(ScheduleCreateModel.BreakEndTimeString):
+                    schedule.BreakEndTimeString = timeString;
+                    break;
+            }
+            StateHasChanged();
+        }
     }
 
-    private void HandleSubmit()
+    private double CalculateDuration()
     {
-        // In real app, save to database
-        // If recurring, create multiple schedule entries
-        // If slot duration specified, create multiple time slots
-        Navigation.NavigateTo("/Admin/Schedule");
+        if (TimeSpan.TryParse(schedule.StartTimeString, out var startTime) &&
+            TimeSpan.TryParse(schedule.EndTimeString, out var endTime))
+        {
+            return (endTime - startTime).TotalHours;
+        }
+        return 0;
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            // Validate required times
+            if (!TimeSpan.TryParse(schedule.StartTimeString, out var startTime) ||
+                !TimeSpan.TryParse(schedule.EndTimeString, out var endTime))
+            {
+                errorMessage = "Please enter valid start and end times";
+                return;
+            }
+
+            // Parse break times with fallback to default values
+            TimeSpan breakStartTime = TimeSpan.Zero;
+            TimeSpan breakEndTime = TimeSpan.Zero;
+
+            if (!string.IsNullOrEmpty(schedule.BreakStartTimeString))
+                TimeSpan.TryParse(schedule.BreakStartTimeString, out breakStartTime);
+
+            if (!string.IsNullOrEmpty(schedule.BreakEndTimeString))
+                TimeSpan.TryParse(schedule.BreakEndTimeString, out breakEndTime);
+
+            // Create a new schedule
+            var newSchedule = new Schedule
+            {
+                StaffId = schedule.StaffId,
+                StartTime = schedule.ScheduleDate.Add(startTime),
+                EndTime = schedule.ScheduleDate.Add(endTime),
+                BreakStart = schedule.ScheduleDate.Add(breakStartTime),
+                BreakEnd = schedule.ScheduleDate.Add(breakEndTime),
+                ShiftType = schedule.ShiftType,
+                Status = schedule.Status,
+                IsAvailable = schedule.IsAvailable,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var createdSchedule = await AdminService.CreateScheduleAsync(newSchedule);
+
+            if (createdSchedule != null)
+            {
+                Navigation.NavigateTo("/Admin/Schedule");
+            }
+            else
+            {
+                errorMessage = "Failed to create schedule. There may be a schedule conflict or staff member not found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating schedule: {ex.Message}";
+            Console.WriteLine($"Error in HandleSubmit: {ex}");
+        }
     }
 
     private void Cancel()
@@ -240,39 +290,27 @@
 
         [Required(ErrorMessage = "Schedule date is required")]
         [DataType(DataType.Date)]
-        public DateTime ScheduleDate { get; set; }
+        public DateTime ScheduleDate { get; set; } = DateTime.Today.AddDays(1);
 
         [Required(ErrorMessage = "Start time is required")]
-        public TimeSpan StartTime { get; set; }
+        [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Please enter a valid time in HH:mm format")]
+        public string StartTimeString { get; set; } = "09:00";
 
         [Required(ErrorMessage = "End time is required")]
-        public TimeSpan EndTime { get; set; }
+        [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Please enter a valid time in HH:mm format")]
+        public string EndTimeString { get; set; } = "17:00";
 
-        [Required(ErrorMessage = "Start time is required")]
-        public TimeSpan BreakStartTime { get; set; }
+        [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Please enter a valid time in HH:mm format")]
+        public string BreakStartTimeString { get; set; } = "12:00";
 
-        [Required(ErrorMessage = "End time is required")]
-        public TimeSpan BreakEndTime { get; set; }
+        [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Please enter a valid time in HH:mm format")]
+        public string BreakEndTimeString { get; set; } = "12:30";
+
+        public string ShiftType { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Status is required")]
-        public string Status { get; set; } = string.Empty;
+        public string Status { get; set; } = "Available";
 
-        [Range(5, 480, ErrorMessage = "Slot duration must be between 5 and 480 minutes")]
-        public int? SlotDuration { get; set; }
-
-        public bool IsRecurring { get; set; }
-
-        public bool Monday { get; set; }
-        public bool Tuesday { get; set; }
-        public bool Wednesday { get; set; }
-        public bool Thursday { get; set; }
-        public bool Friday { get; set; }
-        public bool Saturday { get; set; }
-        public bool Sunday { get; set; }
-
-        public DateTime? RecurringEndDate { get; set; }
-
-        [StringLength(500, ErrorMessage = "Notes cannot exceed 500 characters")]
-        public string? Notes { get; set; }
+        public bool IsAvailable { get; set; } = true;
     }
 }

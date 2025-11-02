@@ -1,11 +1,13 @@
 ﻿@page "/admin/staff/create"
-@rendermode InteractiveServer
-@inject NavigationManager Navigation
+@using HMS.Services
 @using System.ComponentModel.DataAnnotations
+@inject AdminService AdminService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
 
 <div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-lg-8">
+        <div class="col-lg-10">
             <div class="card">
                 <div class="card-header bg-success text-white">
                     <h4 class="mb-0">
@@ -14,16 +16,50 @@
                     </h4>
                 </div>
                 <div class="card-body">
+                    @if (errorMessage != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMessage
+                            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+                        </div>
+                    }
+
                     <EditForm Model="@staff" OnValidSubmit="HandleSubmit">
                         <DataAnnotationsValidator />
                         <ValidationSummary class="text-danger mb-3" />
 
                         <div class="row">
-                            <!-- Full Name -->
+                            <div class="col-12 mb-3">
+                                <h6 class="text-muted border-bottom pb-2"><i class="bi bi-person me-2"></i>Personal Information</h6>
+                            </div>
+
+                            <!-- First Name -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Full Name *</label>
-                                <InputText @bind-Value="staff.FullName" class="form-control" placeholder="Enter full name" />
-                                <ValidationMessage For="@(() => staff.FullName)" />
+                                <label class="form-label">First Name *</label>
+                                <InputText @bind-Value="staff.FirstName" class="form-control" placeholder="Enter first name" />
+                                <ValidationMessage For="@(() => staff.FirstName)" />
+                            </div>
+
+                            <!-- Last Name -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Last Name *</label>
+                                <InputText @bind-Value="staff.LastName" class="form-control" placeholder="Enter last name" />
+                                <ValidationMessage For="@(() => staff.LastName)" />
+                            </div>
+
+                            <!-- Personal Number -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Personal Number (SSN) *</label>
+                                <InputText @bind-Value="staff.PersonalNumber"
+                                           class="form-control"
+                                           placeholder="199001011234"
+                                           maxlength="12" />
+                                <small class="text-muted">Optional - 12 digits (YYYYMMDDXXXX)</small>
+                                <ValidationMessage For="@(() => staff.PersonalNumber)" />
+                            </div>
+
+                            <div class="col-12 mb-3 mt-3">
+                                <h6 class="text-muted border-bottom pb-2"><i class="bi bi-briefcase me-2"></i>Employment Details</h6>
                             </div>
 
                             <!-- Role -->
@@ -50,7 +86,7 @@
 
                             <!-- Department -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Department</label>
+                                <label class="form-label">Department *</label>
                                 <InputSelect @bind-Value="staff.Department" class="form-select">
                                     <option value="">Select Department</option>
                                     <option value="Emergency">Emergency</option>
@@ -64,27 +100,21 @@
                                     <option value="Laboratory">Laboratory</option>
                                     <option value="Administration">Administration</option>
                                 </InputSelect>
+                                <ValidationMessage For="@(() => staff.Department)" />
                             </div>
 
-                            <!-- Phone -->
+                            <!-- Contract Form -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Phone *</label>
-                                <InputText @bind-Value="staff.Phone" class="form-control" placeholder="+46 70 123 4567" />
-                                <ValidationMessage For="@(() => staff.Phone)" />
-                            </div>
-
-                            <!-- Email -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Email *</label>
-                                <InputText @bind-Value="staff.Email" type="email" class="form-control" placeholder="email@hospital.com" />
-                                <ValidationMessage For="@(() => staff.Email)" />
-                            </div>
-
-                            <!-- License Number -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">License Number</label>
-                                <InputText @bind-Value="staff.LicenseNumber" class="form-control" placeholder="MD-2024-1234" />
-                                <small class="form-text text-muted">Required for doctors and nurses</small>
+                                <label class="form-label">Contract Form *</label>
+                                <InputSelect @bind-Value="staff.ContractForm" class="form-select">
+                                    <option value="">Select Contract Form</option>
+                                    <option value="Full-Time">Full-Time</option>
+                                    <option value="Part-Time">Part-Time</option>
+                                    <option value="Contract">Contract</option>
+                                    <option value="Temporary">Temporary</option>
+                                    <option value="Intern">Intern</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => staff.ContractForm)" />
                             </div>
 
                             <!-- Hourly Rate -->
@@ -94,40 +124,63 @@
                                 <ValidationMessage For="@(() => staff.HourlyRate)" />
                             </div>
 
-                            <!-- Hired Date -->
+                            <!-- Vacation Days -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Hired Date *</label>
-                                <InputDate @bind-Value="staff.HiredDate" class="form-control" />
-                                <ValidationMessage For="@(() => staff.HiredDate)" />
+                                <label class="form-label">Vacation Days *</label>
+                                <InputNumber @bind-Value="staff.VacationDays" class="form-control" placeholder="25" />
+                                <ValidationMessage For="@(() => staff.VacationDays)" />
+                                <small class="text-muted">Default: 25 days per year</small>
                             </div>
 
-                            <!-- Employment Type -->
+                            <!-- Taxes -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Employment Type *</label>
-                                <InputSelect @bind-Value="staff.EmploymentType" class="form-select">
-                                    <option value="">Select Type</option>
-                                    <option value="Full-Time">Full-Time</option>
-                                    <option value="Part-Time">Part-Time</option>
-                                    <option value="Contract">Contract</option>
-                                    <option value="Intern">Intern</option>
-                                </InputSelect>
-                                <ValidationMessage For="@(() => staff.EmploymentType)" />
+                                <label class="form-label">Tax Rate (%)</label>
+                                <InputNumber @bind-Value="staff.Taxes" class="form-control" step="0.01" placeholder="30.00" />
+                                <small class="text-muted">Optional - tax percentage</small>
                             </div>
 
-                            <!-- Address -->
-                            <div class="col-md-12 mb-3">
-                                <label class="form-label">Address</label>
-                                <InputText @bind-Value="staff.Address" class="form-control" placeholder="Street, City, Postal Code" />
+                            <!-- Bank Details -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Bank Details</label>
+                                <InputText @bind-Value="staff.BankDetails" class="form-control" placeholder="Bank account number" />
+                                <small class="text-muted">Optional</small>
                             </div>
 
+                            <div class="col-12 mb-3 mt-3">
+                                <h6 class="text-muted border-bottom pb-2"><i class="bi bi-key me-2"></i>Account Credentials</h6>
+                            </div>
+
+                            <!-- Email -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email (Login) *</label>
+                                <InputText @bind-Value="staff.Email" type="email" class="form-control" placeholder="staff@hospital.com" />
+                                <ValidationMessage For="@(() => staff.Email)" />
+                                <small class="text-muted">This will be used for login</small>
+                            </div>
+
+                            <!-- Password -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Password *</label>
+                                <InputText @bind-Value="staff.Password" type="password" class="form-control" placeholder="Min 6 characters" />
+                                <ValidationMessage For="@(() => staff.Password)" />
+                            </div>
                         </div>
 
                         <!-- Action Buttons -->
                         <div class="d-flex gap-2 mt-4">
-                            <button type="submit" class="btn btn-success">
-                                <i class="bi bi-check-circle me-1"></i> Create Staff Member
+                            <button type="submit" class="btn btn-success" disabled="@isSubmitting">
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    <span>Creating...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    <span>Create Staff Member</span>
+                                }
                             </button>
-                            <button type="button" class="btn btn-secondary" @onclick="Cancel">
+                            <button type="button" class="btn btn-secondary" @onclick="Cancel" disabled="@isSubmitting">
                                 <i class="bi bi-x-circle me-1"></i> Cancel
                             </button>
                         </div>
@@ -141,18 +194,54 @@
 @code {
     private StaffCreateModel staff = new()
     {
-        HiredDate = DateTime.Today,
-        HourlyRate = 0.00m
+        HourlyRate = 0.00m,
+        VacationDays = 25,
+        Taxes = 0
     };
 
-    private void HandleSubmit()
-    {
-        // In real app, save to database via service
-        // Example:
-        // await StaffService.CreateAsync(staff);
+    private bool isSubmitting = false;
+    private string? errorMessage = null;
 
-        // For demo, just navigate back to list
-        Navigation.NavigateTo("/Admin/Staff");
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+
+            var result = await AdminService.CreateStaffAsync(
+                email: staff.Email,
+                password: staff.Password,
+                firstName: staff.FirstName,
+                lastName: staff.LastName,
+                role: staff.Role,
+                contractForm: staff.ContractForm,
+                department: staff.Department,
+                hourlyRate: staff.HourlyRate,
+                specialization: staff.Specialization,
+                taxes: staff.Taxes,
+                bankDetails: staff.BankDetails ?? string.Empty,
+                vacationDays: staff.VacationDays,
+                personalNumber: staff.PersonalNumber
+            );
+
+            if (result.Success)
+            {
+                Navigation.NavigateTo("/Admin/Staff");
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating staff member: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
     }
 
     private void Cancel()
@@ -162,9 +251,17 @@
 
     public class StaffCreateModel
     {
-        [Required(ErrorMessage = "Full name is required")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "Name must be between 2 and 100 characters")]
-        public string FullName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "First name is required")]
+        [StringLength(50, MinimumLength = 2, ErrorMessage = "First name must be between 2 and 50 characters")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Last name is required")]
+        [StringLength(50, MinimumLength = 2, ErrorMessage = "Last name must be between 2 and 50 characters")]
+        public string LastName { get; set; } = string.Empty;
+
+        [StringLength(12, ErrorMessage = "Personal number cannot exceed 12 characters")]
+        [RegularExpression(@"^\d{10,12}$", ErrorMessage = "Personal number must be 10-12 digits")]
+        public string? PersonalNumber { get; set; }
 
         [Required(ErrorMessage = "Role is required")]
         public string Role { get; set; } = string.Empty;
@@ -173,35 +270,34 @@
         [StringLength(100, ErrorMessage = "Specialization cannot exceed 100 characters")]
         public string Specialization { get; set; } = string.Empty;
 
+        [Required(ErrorMessage = "Department is required")]
         [StringLength(50, ErrorMessage = "Department cannot exceed 50 characters")]
-        public string? Department { get; set; }
+        public string Department { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Phone is required")]
-        [Phone(ErrorMessage = "Invalid phone number format")]
-        [StringLength(20, ErrorMessage = "Phone number cannot exceed 20 characters")]
-        public string Phone { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Contract form is required")]
+        public string ContractForm { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Hourly rate is required")]
+        [Range(0.01, 10000, ErrorMessage = "Hourly rate must be between 0.01 and 10,000")]
+        public decimal HourlyRate { get; set; }
+
+        [Required(ErrorMessage = "Vacation days is required")]
+        [Range(0, 365, ErrorMessage = "Vacation days must be between 0 and 365")]
+        public int VacationDays { get; set; }
+
+        [Range(0, 100, ErrorMessage = "Tax rate must be between 0 and 100")]
+        public decimal Taxes { get; set; }
+
+        [StringLength(100, ErrorMessage = "Bank details cannot exceed 100 characters")]
+        public string? BankDetails { get; set; }
 
         [Required(ErrorMessage = "Email is required")]
         [EmailAddress(ErrorMessage = "Invalid email address format")]
         [StringLength(100, ErrorMessage = "Email cannot exceed 100 characters")]
         public string Email { get; set; } = string.Empty;
 
-        [StringLength(50, ErrorMessage = "License number cannot exceed 50 characters")]
-        public string? LicenseNumber { get; set; }
-
-        [Required(ErrorMessage = "Hourly rate is required")]
-        [Range(0.01, 10000, ErrorMessage = "Hourly rate must be between 0.01 and 10,000")]
-        public decimal HourlyRate { get; set; }
-
-        [Required(ErrorMessage = "Hired date is required")]
-        [DataType(DataType.Date)]
-        public DateTime HiredDate { get; set; }
-
-        [Required(ErrorMessage = "Employment type is required")]
-        public string EmploymentType { get; set; } = string.Empty;
-
-        [StringLength(200, ErrorMessage = "Address cannot exceed 200 characters")]
-        public string? Address { get; set; }
-
+        [Required(ErrorMessage = "Password is required")]
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters")]
+        public string Password { get; set; } = string.Empty;
     }
 }

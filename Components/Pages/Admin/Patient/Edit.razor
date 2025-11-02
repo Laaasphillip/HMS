@@ -1,4 +1,9 @@
 ﻿@page "/admin/patient/edit/{PatientId:int}"
+@using HMS.Models
+@using HMS.Services
+@using System.ComponentModel.DataAnnotations
+@inject AdminService AdminService
+@inject NavigationManager Navigation
 @rendermode InteractiveServer
 
 <div class="container mt-4">
@@ -8,7 +13,7 @@
                 <div class="card-header bg-warning text-dark">
                     <h4 class="mb-0">
                         <i class="bi bi-pencil-square me-2"></i>
-                        Edit Patient - @patient.FullName
+                        Edit Patient @(patient != null ? $"- {patient.FirstName} {patient.LastName}" : "")
                     </h4>
                 </div>
                 <div class="card-body">
@@ -30,21 +35,28 @@
                                 <!-- Patient ID (Read-only) -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Patient ID</label>
-                                    <input type="text" class="form-control" value="@patient.PatientId" disabled />
+                                    <input type="text" class="form-control" value="@PatientId" disabled />
                                 </div>
 
-                                <!-- Full Name -->
+                                <!-- First Name -->
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Full Name *</label>
-                                    <InputText @bind-Value="patient.FullName" class="form-control" placeholder="Enter full name" />
-                                    <ValidationMessage For="@(() => patient.FullName)" />
+                                    <label class="form-label">First Name *</label>
+                                    <InputText @bind-Value="patient.FirstName" class="form-control" placeholder="Enter first name" />
+                                    <ValidationMessage For="@(() => patient.FirstName)" />
+                                </div>
+
+                                <!-- Last Name -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Last Name *</label>
+                                    <InputText @bind-Value="patient.LastName" class="form-control" placeholder="Enter last name" />
+                                    <ValidationMessage For="@(() => patient.LastName)" />
                                 </div>
 
                                 <!-- Date of Birth -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Date of Birth *</label>
-                                    <InputDate @bind-Value="patient.DateOfBirth" class="form-control" />
-                                    <ValidationMessage For="@(() => patient.DateOfBirth)" />
+                                    <InputDate @bind-Value="patient.Dateofbirth" class="form-control" />
+                                    <ValidationMessage For="@(() => patient.Dateofbirth)" />
                                 </div>
 
                                 <!-- Blood Group -->
@@ -64,25 +76,33 @@
                                     <ValidationMessage For="@(() => patient.BloodGroup)" />
                                 </div>
 
-                                <!-- Phone -->
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Phone *</label>
-                                    <InputText @bind-Value="patient.Phone" class="form-control" placeholder="+46 70 123 4567" />
-                                    <ValidationMessage For="@(() => patient.Phone)" />
-                                </div>
-
                                 <!-- Email -->
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Email *</label>
+                                    <label class="form-label">Email</label>
                                     <InputText @bind-Value="patient.Email" type="email" class="form-control" placeholder="email@example.com" />
                                     <ValidationMessage For="@(() => patient.Email)" />
                                 </div>
 
-                                <!-- Emergency Contact -->
+                                <!-- Personal-Number -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Personal Number (SSN)</label>
+                                    <InputText @bind-Value="patient.PersonalNumber" class="form-control" placeholder="199002051234" />
+                                    <ValidationMessage For="@(() => patient.PersonalNumber)" />
+                                </div>
+
+                                <!-- Phone -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Phone</label>
+                                    <InputText @bind-Value="patient.PhoneNumber" class="form-control" placeholder="+46 70 123 4567" />
+                                    <ValidationMessage For="@(() => patient.PhoneNumber)" />
+                                </div>
+
+
+                                <!-- Contact/Emergency Contact -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Emergency Contact *</label>
-                                    <InputText @bind-Value="patient.EmergencyContact" class="form-control" placeholder="+46 70 987 6543" />
-                                    <ValidationMessage For="@(() => patient.EmergencyContact)" />
+                                    <InputText @bind-Value="patient.Contact" class="form-control" placeholder="+46 70 987 6543" />
+                                    <ValidationMessage For="@(() => patient.Contact)" />
                                 </div>
 
                                 <!-- Address -->
@@ -94,7 +114,19 @@
                                 <!-- Created At (Read-only) -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Registered Date</label>
-                                    <input type="text" class="form-control" value="@patient.CreatedAt.ToString("yyyy-MM-dd HH:mm")" disabled />
+                                    <input type="text" class="form-control" value="@patient.Createdat.ToString("yyyy-MM-dd HH:mm")" disabled />
+                                </div>
+
+                                <!-- Preferences -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Preferences</label>
+                                    <InputText @bind-Value="patient.Preferences" class="form-control" placeholder="Patient preferences" />
+                                </div>
+
+                                <!-- Interests -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Interests</label>
+                                    <InputText @bind-Value="patient.Interests" class="form-control" placeholder="Patient interests" />
                                 </div>
                             </div>
 
@@ -121,64 +153,106 @@
 
     private PatientEditModel patient = new();
     private bool isLoading = true;
+    private string? errorMessage;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        // Simulate loading data from database
-        LoadPatientData();
-        isLoading = false;
+        await LoadPatientDataAsync();
     }
 
-    private void LoadPatientData()
+    private async Task LoadPatientDataAsync()
     {
-        // In real app, fetch from database
-        // For demo, using hardcoded data
-        patient = PatientId switch
+        isLoading = true;
+        errorMessage = null;
+
+        try
         {
-            1001 => new PatientEditModel
+            var dbPatient = await AdminService.GetPatientByIdAsync(PatientId);
+
+            if (dbPatient == null)
             {
-                PatientId = 1001,
-                FullName = "Emma Johnson",
-                DateOfBirth = new DateTime(1985, 5, 15),
-                BloodGroup = "A+",
-                Phone = "+46 70 123 4567",
-                Email = "emma.johnson@email.com",
-                EmergencyContact = "+46 70 987 6543",
-                Address = "123 Main Street, Stockholm",
-                CreatedAt = new DateTime(2024, 1, 15)
-            },
-            1002 => new PatientEditModel
-            {
-                PatientId = 1002,
-                FullName = "Michael Anderson",
-                DateOfBirth = new DateTime(1990, 8, 22),
-                BloodGroup = "O+",
-                Phone = "+46 70 234 5678",
-                Email = "michael.anderson@email.com",
-                EmergencyContact = "+46 70 876 5432",
-                Address = "456 Oak Avenue, Gothenburg",
-                CreatedAt = new DateTime(2024, 2, 20)
-            },
-            _ => new PatientEditModel
-            {
-                PatientId = PatientId,
-                FullName = "Sample Patient",
-                DateOfBirth = DateTime.Now.AddYears(-30),
-                BloodGroup = "O+",
-                Phone = "+46 70 000 0000",
-                Email = "patient@email.com",
-                EmergencyContact = "+46 70 000 0001",
-                Address = "Sample Address",
-                CreatedAt = DateTime.Now
+                errorMessage = "Patient not found";
+                patient = new PatientEditModel();
+                return;
             }
-        };
+
+            // Map database model to edit model
+            patient = new PatientEditModel
+            {
+                Id = dbPatient.Id,
+                FirstName = dbPatient.User?.FirstName ?? "",
+                LastName = dbPatient.User?.LastName ?? "",
+                Dateofbirth = dbPatient.Dateofbirth,
+                BloodGroup = dbPatient.BloodGroup ?? "",
+                PhoneNumber = dbPatient.User?.PhoneNumber ?? "",
+                PersonalNumber = dbPatient.User?.PersonalNumber ?? "",
+                Email = dbPatient.User?.Email ?? "",
+                Contact = dbPatient.Contact ?? "",
+                Address = dbPatient.Address ?? "",
+                Preferences = dbPatient.Preferences ?? "",
+                Interests = dbPatient.Interests ?? "",
+                Createdat = dbPatient.Createdat,
+                UserId = dbPatient.UserId
+            };
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading patient: {ex.Message}";
+            Console.WriteLine($"Error in LoadPatientDataAsync: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
-    private void HandleSubmit()
+    private async Task HandleSubmit()
     {
-        // In real app, save to database
-        // For demo, just navigate back
-        Navigation.NavigateTo("/Admin/Patient");
+        try
+        {
+            // Load the existing patient from database
+            var dbPatient = await AdminService.GetPatientByIdAsync(PatientId);
+
+            if (dbPatient == null)
+            {
+                errorMessage = "Patient not found";
+                return;
+            }
+
+            // Update patient properties
+            dbPatient.Dateofbirth = patient.Dateofbirth;
+            dbPatient.BloodGroup = patient.BloodGroup;
+            dbPatient.Contact = patient.Contact;
+            dbPatient.Address = patient.Address;
+            dbPatient.Preferences = patient.Preferences;
+            dbPatient.Interests = patient.Interests;
+
+            // Update user properties if User exists
+            if (dbPatient.User != null)
+            {
+                dbPatient.User.FirstName = patient.FirstName;
+                dbPatient.User.LastName = patient.LastName;
+                dbPatient.User.PhoneNumber = patient.PhoneNumber;
+                dbPatient.User.PersonalNumber = patient.PersonalNumber;
+                dbPatient.User.Email = patient.Email;
+            }
+
+            var success = await AdminService.UpdatePatientAsync(dbPatient);
+
+            if (success)
+            {
+                Navigation.NavigateTo("/Admin/Patient");
+            }
+            else
+            {
+                errorMessage = "Failed to update patient";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving patient: {ex.Message}";
+            Console.WriteLine($"Error in HandleSubmit: {ex}");
+        }
     }
 
     private void Cancel()
@@ -188,31 +262,38 @@
 
     public class PatientEditModel
     {
-        public int PatientId { get; set; }
+        public int Id { get; set; }
+        public string UserId { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Full name is required")]
-        [StringLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
-        public string FullName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "First name is required")]
+        [StringLength(100, ErrorMessage = "First name cannot exceed 100 characters")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Last name is required")]
+        [StringLength(100, ErrorMessage = "Last name cannot exceed 100 characters")]
+        public string LastName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Date of birth is required")]
-        public DateTime DateOfBirth { get; set; }
+        public DateTime Dateofbirth { get; set; }
 
         [Required(ErrorMessage = "Blood group is required")]
         public string BloodGroup { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Phone is required")]
-        [Phone(ErrorMessage = "Invalid phone number")]
-        public string Phone { get; set; } = string.Empty;
+        public string? PhoneNumber { get; set; }
 
-        [Required(ErrorMessage = "Email is required")]
-        [EmailAddress(ErrorMessage = "Invalid email address")]
-        public string Email { get; set; } = string.Empty;
+        public string? PersonalNumber { get; set; }
+
+        public string? Email { get; set; }
 
         [Required(ErrorMessage = "Emergency contact is required")]
-        public string EmergencyContact { get; set; } = string.Empty;
+        public string Contact { get; set; } = string.Empty;
 
         public string? Address { get; set; }
 
-        public DateTime CreatedAt { get; set; }
+        public string? Preferences { get; set; }
+
+        public string? Interests { get; set; }
+
+        public DateTime Createdat { get; set; }
     }
 }

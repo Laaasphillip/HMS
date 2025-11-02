@@ -1,0 +1,221 @@
+﻿@page "/admin/patient/view/{PatientId:int}"
+@using HMS.Models
+@using HMS.Services
+@inject AdminService AdminService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            @if (isLoading)
+            {
+                <div class="text-center p-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    @errorMessage
+                </div>
+                <button class="btn btn-secondary" @onclick="GoBack">
+                    <i class="bi bi-arrow-left me-1"></i> Back to List
+                </button>
+            }
+            else if (patient != null)
+            {
+                <!-- Header Card -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h4 class="mb-0">
+                                <i class="bi bi-person-fill me-2"></i>
+                                Patient Details - @patient.User?.FirstName @patient.User?.LastName
+                            </h4>
+                            <div>
+                                <button class="btn btn-light btn-sm me-2" @onclick="EditPatient">
+                                    <i class="bi bi-pencil me-1"></i> Edit
+                                </button>
+                                <button class="btn btn-outline-light btn-sm" @onclick="GoBack">
+                                    <i class="bi bi-arrow-left me-1"></i> Back
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Personal Information -->
+                            <div class="col-md-6 mb-3">
+                                <h5 class="text-primary border-bottom pb-2 mb-3">
+                                    <i class="bi bi-person-circle me-2"></i>Personal Information
+                                </h5>
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-bold" style="width: 40%;">Patient ID:</td>
+                                            <td>@patient.Id</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">First Name:</td>
+                                            <td>@patient.User?.FirstName</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Last Name:</td>
+                                            <td>@patient.User?.LastName</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Date of Birth:</td>
+                                            <td>@patient.Dateofbirth.ToString("MMMM dd, yyyy")</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Age:</td>
+                                            <td>@CalculateAge(patient.Dateofbirth) years</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Blood Group:</td>
+                                            <td>
+                                                <span class="badge bg-danger">@patient.BloodGroup</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Personal Number:</td>
+                                            <td>@(patient.User?.PersonalNumber?.ToString() ?? "N/A")</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Registered Date:</td>
+                                            <td>@patient.Createdat.ToString("MMMM dd, yyyy HH:mm")</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Contact Information -->
+                            <div class="col-md-6 mb-3">
+                                <h5 class="text-primary border-bottom pb-2 mb-3">
+                                    <i class="bi bi-telephone me-2"></i>Contact Information
+                                </h5>
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-bold" style="width: 40%;">Email:</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(patient.User?.Email))
+                                                {
+                                                    <a href="mailto:@patient.User.Email">@patient.User.Email</a>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">N/A</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Contact:</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(patient.Contact))
+                                                {
+                                                    <a href="tel:@patient.Contact">@patient.Contact</a>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">N/A</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Address:</td>
+                                            <td>@(patient.Address ?? "N/A")</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Additional Information -->
+                            <div class="col-md-12 mb-3">
+                                <h5 class="text-primary border-bottom pb-2 mb-3">
+                                    <i class="bi bi-info-circle me-2"></i>Additional Information
+                                </h5>
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-bold" style="width: 20%;">Preferences:</td>
+                                            <td>@(patient.Preferences ?? "N/A")</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Interests:</td>
+                                            <td>@(patient.Interests ?? "N/A")</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int PatientId { get; set; }
+
+    private Patient? patient;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPatientDetailsAsync();
+    }
+
+    private async Task LoadPatientDetailsAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            patient = await AdminService.GetPatientByIdAsync(PatientId);
+
+            if (patient == null)
+            {
+                errorMessage = "Patient not found";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading patient details: {ex.Message}";
+            Console.WriteLine($"Error in LoadPatientDetailsAsync: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void EditPatient()
+    {
+        Navigation.NavigateTo($"/Admin/Patient/Edit/{PatientId}");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/Admin/Patient");
+    }
+
+    private int CalculateAge(DateTime dateOfBirth)
+    {
+        var today = DateTime.Today;
+        var age = today.Year - dateOfBirth.Year;
+        if (dateOfBirth.Date > today.AddYears(-age)) age--;
+        return age;
+    }
+
+}
