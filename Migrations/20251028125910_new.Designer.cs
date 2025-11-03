@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HMS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251027224205_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20251028125910_new")]
+    partial class @new
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -269,15 +269,7 @@ namespace HMS.Migrations
                     b.Property<DateTime>("Dateofbirth")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Interests")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -425,7 +417,8 @@ namespace HMS.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ScheduleId");
+                    b.HasIndex("ScheduleId")
+                        .IsUnique();
 
                     b.HasIndex("StaffId");
 
@@ -615,7 +608,8 @@ namespace HMS.Migrations
                     b.HasOne("HMS.Models.Schedule", "Schedule")
                         .WithOne("Appointment")
                         .HasForeignKey("HMS.Models.Appointment", "ScheduleId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("HMS.Models.Staff", "Staff")
                         .WithMany("Appointments")
@@ -696,9 +690,9 @@ namespace HMS.Migrations
             modelBuilder.Entity("HMS.Models.TimeReport", b =>
                 {
                     b.HasOne("HMS.Models.Schedule", "Schedule")
-                        .WithMany()
-                        .HasForeignKey("ScheduleId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .WithOne("TimeReport")
+                        .HasForeignKey("HMS.Models.TimeReport", "ScheduleId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("HMS.Models.Staff", "Staff")
@@ -804,6 +798,9 @@ namespace HMS.Migrations
             modelBuilder.Entity("HMS.Models.Schedule", b =>
                 {
                     b.Navigation("Appointment")
+                        .IsRequired();
+
+                    b.Navigation("TimeReport")
                         .IsRequired();
                 });
 

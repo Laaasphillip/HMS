@@ -1,0 +1,95 @@
+﻿@page "/timereport/index"
+@inject NavigationManager Navigation
+@using HMS.Models
+@rendermode InteractiveServer
+
+<h3>My Time Report</h3>
+
+<div class="card p-4 shadow-sm mb-4">
+    <h5>Shift Control</h5>
+    <div class="d-flex gap-2">
+        <button class="btn btn-success" @onclick="ClockIn" disabled="@isClockedIn">Clock In</button>
+        <button class="btn btn-danger" @onclick="ClockOut" disabled="@(!isClockedIn)">Clock Out</button>
+    </div>
+
+    <p class="mt-3">
+        <strong>Status:</strong>
+        @if (isClockedIn)
+        {
+            <span class="text-success">Currently Clocked In</span>
+        }
+        else
+        {
+            <span class="text-muted">Not Clocked In</span>
+        }
+    </p>
+</div>
+
+<div class="card p-4 shadow-sm">
+    <h5>My Shifts</h5>
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Clock In</th>
+                <th>Clock Out</th>
+                <th>Duration</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var report in userReports)
+            {
+                <tr>
+                    <td>@report.ClockIn.ToShortDateString()</td>
+                    <td>@report.ClockIn.ToShortTimeString()</td>
+                    <td>@(report.ClockOut?.ToShortTimeString() ?? "-")</td>
+                    <td>
+                        @(report.ClockOut.HasValue
+                                            ? (report.ClockOut.Value - report.ClockIn).ToString(@"hh\:mm")
+                                            : "-")
+                </td>
+            </tr>
+                        }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private bool isClockedIn = false;
+    private List<TimeReport> userReports = new();
+
+    private void ClockIn()
+    {
+        if (!isClockedIn)
+        {
+            isClockedIn = true;
+            userReports.Add(new TimeReport
+            {
+                Id = userReports.Count + 1,
+                EmployeeName = "John Doe",
+                ClockIn = DateTime.Now
+            });
+        }
+    }
+
+    private void ClockOut()
+    {
+        if (isClockedIn)
+        {
+            var last = userReports.LastOrDefault(r => !r.ClockOut.HasValue);
+            if (last != null)
+            {
+                last.ClockOut = DateTime.Now;
+            }
+            isClockedIn = false;
+        }
+    }
+
+    public class TimeReport
+    {
+        public int Id { get; set; }
+        public string EmployeeName { get; set; } = string.Empty;
+        public DateTime ClockIn { get; set; }
+        public DateTime? ClockOut { get; set; }
+    }
+}
