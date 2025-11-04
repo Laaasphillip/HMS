@@ -279,8 +279,8 @@ namespace HMS.DTOs
     // LEAVE DTOs
     public class CreateLeaveDto
     {
-        public DateTime StartDate { get; set; }     // ✅ DateTime (NON-nullable)
-        public DateTime EndDate { get; set; }       // ✅ DateTime (NON-nullable)
+        public DateTime StartDate { get; set; }     
+        public DateTime EndDate { get; set; }       
         public string LeaveType { get; set; }
         public string Description { get; set; }
     }
