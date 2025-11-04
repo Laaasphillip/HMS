@@ -9,7 +9,7 @@
         public decimal SubTotal { get; set; }
         public decimal TaxAmount { get; set; }
         public decimal TotalAmount { get; set; }
-        public string Status { get; set; }
+        public string Status { get; set; } = "Pending";
         public DateTime DueDate { get; set; }
         public DateTime CreatedAt { get; set; }
 
