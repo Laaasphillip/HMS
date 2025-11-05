@@ -2,8 +2,11 @@
 @rendermode InteractiveServer
 @inject NavigationManager Navigation
 @using System.ComponentModel.DataAnnotations
-@* @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize] *@
+@using HMS.Data
+@using HMS.Models
+@using HMS.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize] 
 
 <div class="container mt-4">
     <div class="row justify-content-center">
@@ -220,7 +223,7 @@
                     }
 
                     <!-- Staff Info -->
-                    @if (userRole == "Staff" || userRole == "Doctor" || userRole == "Nurse")
+                    @if (userRole == "Staff" || userRole == "Admin")
                     {
                         <div class="card mb-4">
                             <div class="card-header bg-light">
@@ -360,57 +363,35 @@
     </div>
 </div>
 
-<style>
-    .card {
-        border: none;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.5);
-        border-radius: 8px;
-    }
 
-    .card-header {
-        border-bottom: 1px solid #e9ecef;
-        padding: 1rem 1.5rem;
-    }
-
-    .form-control, .form-select {
-        border: 1px solid #dee2e6;
-        border-radius: 6px;
-    }
-
-        .form-control:focus, .form-select:focus {
-            border-color: #0ea5e9;
-            box-shadow: 0 0 0 0.2rem rgba(14, 165, 233, 0.15);
-        }
-
-    .btn-primary {
-        background-color: #0ea5e9;
-        border-color: #0ea5e9;
-    }
-
-        .btn-primary:hover {
-            background-color: #0284c7;
-            border-color: #0284c7;
-        }
-</style>
 
 @code {
+    [Inject] private PatientService PatientService { get; set; } = default!;
+    [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = default!;
+    [Inject] private Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> UserManager { get; set; } = default!;
+
+    // view-model used by the page
     private ProfileData profileData = new();
-    private string userRole = "Staff";
+    private string userRole = "Patient"; 
     private bool isEditMode = false;
-    private bool isLoading = false;
+    private bool isLoading = true;
+    private string? statusMessage;
+    private string? errorMessage;
+
+    private HMS.Models.Patient? loadedPatient;
+    private ApplicationUser? loadedUser;
 
     public class ProfileData
     {
-        // Common Identity fields
         [Required, EmailAddress]
         public string Email { get; set; } = string.Empty;
 
         [Phone]
         public string Phone { get; set; } = string.Empty;
 
-        public int UserId { get; set; }
+        public string UserId { get; set; } = string.Empty;
 
-        // Patient-specific fields (from Patient model)
+        // Patient model fields (map to Patient.Dateofbirth, Patient.Address, etc.)
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public DateTime? DateOfBirth { get; set; }
@@ -421,7 +402,7 @@
         public string Preferences { get; set; } = string.Empty;
         public string Interests { get; set; } = string.Empty;
 
-        // Staff-specific fields (from Staff model)
+        // Staff-specific
         public string ContractForm { get; set; } = string.Empty;
         public string Department { get; set; } = string.Empty;
         public decimal? Taxes { get; set; }
@@ -432,48 +413,110 @@
         public DateTime? HiredDate { get; set; }
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        LoadProfileData();
+        isLoading = true;
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated != true)
+            {
+                errorMessage = "You must be logged in to view your profile.";
+                isLoading = false;
+                return;
+            }
+
+            var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim))
+            {
+                errorMessage = "Unable to determine your user id.";
+                isLoading = false;
+                return;
+            }
+
+            if (user.IsInRole("Admin"))
+                userRole = "Admin";
+            else if (user.IsInRole("Staff"))
+                userRole = "Staff";
+            else
+                userRole = "Patient";
+
+            if (userRole == "Patient")
+            {
+                loadedPatient = await PatientService.GetPatientProfileAsync(userIdClaim);
+                if (loadedPatient != null)
+                {
+                    loadedUser = loadedPatient.User;
+                    MapPatientToProfile(loadedPatient, loadedUser);
+                }
+                else
+                {
+                    // optional fallback
+                    loadedUser = await UserManager.FindByIdAsync(userIdClaim);
+                    MapUserToProfile(loadedUser);
+                }
+            }
+            else
+            {
+                loadedUser = await UserManager.FindByIdAsync(userIdClaim);
+                MapUserToProfile(loadedUser);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading profile: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
-    private void LoadProfileData()
+    // Map DB Patient + ApplicationUser -> view model
+    private void MapPatientToProfile(HMS.Models.Patient? patient, ApplicationUser? user)
     {
-        if (userRole == "Patient")
+        if (patient == null && user == null)
+            return;
+
+        profileData = new ProfileData
         {
-            profileData = new ProfileData
-            {
-                UserId = 1,
-                Email = "john.doe@example.com",
-                Phone = "+46 70 123 4567",
-                FirstName = "John",
-                LastName = "Doe",
-                DateOfBirth = new DateTime(1990, 5, 15),
-                Address = "123 Main Street, Stockholm",
-                Contact = "+46 70 123 4567",
-                BloodGroup = "A+",
-                CreatedAt = new DateTime(2024, 1, 15),
-                Preferences = "Morning appointments",
-                Interests = "General health, Fitness"
-            };
-        }
-        else
+            UserId = user?.Id ?? patient?.UserId ?? string.Empty,
+            Email = user?.Email ?? string.Empty,
+            Phone = user?.PhoneNumber ?? string.Empty,
+
+            FirstName = user?.FirstName ?? string.Empty,
+            LastName = user?.LastName ?? string.Empty,
+
+            DateOfBirth = patient?.Dateofbirth,
+            Address = patient?.Address ?? string.Empty,
+            Contact = patient?.Contact ?? string.Empty,
+            BloodGroup = patient?.BloodGroup ?? string.Empty,
+            CreatedAt = patient?.Createdat,
+
+            Preferences = patient?.Preferences ?? string.Empty,
+            Interests = patient?.Interests ?? string.Empty,
+        };
+    }
+
+    private void MapUserToProfile(ApplicationUser? user)
+    {
+        if (user == null)
         {
-            profileData = new ProfileData
-            {
-                UserId = 2001,
-                Email = "sarah.williams@hospital.com",
-                Phone = "+46 70 987 6543",
-                ContractForm = "Full-Time",
-                Department = "Cardiology",
-                Specialization = "Interventional Cardiology",
-                HourlyRate = 1500.00m,
-                HiredDate = new DateTime(2020, 1, 15),
-                VacationDays = 15,
-                Taxes = 350000.00m,
-                BankDetails = "SE1234567890123456"
-            };
+            profileData = new ProfileData();
+            return;
         }
+
+        profileData = new ProfileData
+        {
+            UserId = user.Id,
+            Email = user.Email ?? string.Empty,
+            Phone = user.PhoneNumber ?? string.Empty,
+
+            FirstName = user.FirstName ?? string.Empty,
+            LastName = user.LastName ?? string.Empty
+        };
     }
 
     private void EnableEditMode() => isEditMode = true;
@@ -481,19 +524,104 @@
     private void CancelEdit()
     {
         isEditMode = false;
-        LoadProfileData();
+        _ = OnInitializedAsync();
     }
 
-    private void HandleSave()
+    private async Task HandleSave()
     {
-        isEditMode = false;
+        isLoading = true;
+        statusMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            if (loadedPatient == null && !string.IsNullOrEmpty(profileData.UserId))
+            {
+                loadedPatient = await PatientService.GetPatientProfileAsync(profileData.UserId);
+            }
+
+            // Update Patient entity if exists
+            if (loadedPatient != null)
+            {
+                loadedPatient.Address = profileData.Address;
+                loadedPatient.Contact = profileData.Contact;
+                loadedPatient.Dateofbirth = profileData.DateOfBirth ?? loadedPatient.Dateofbirth;
+                loadedPatient.BloodGroup = profileData.BloodGroup;
+                loadedPatient.Preferences = profileData.Preferences;
+                loadedPatient.Interests = profileData.Interests;
+
+                var (success, message) = await PatientService.UpdatePatientProfileAsync(loadedPatient);
+                if (!success)
+                {
+                    errorMessage = message;
+                    return;
+                }
+            }
+
+            // Update Identity user fields via UserManager
+            if (!string.IsNullOrEmpty(profileData.UserId))
+            {
+                var user = await UserManager.FindByIdAsync(profileData.UserId);
+                if (user != null)
+                {
+                    bool needUpdate = false;
+
+                    if (user.Email != profileData.Email)
+                    {
+                        user.Email = profileData.Email;
+                        user.NormalizedEmail = UserManager.NormalizeEmail(profileData.Email);
+                        needUpdate = true;
+                    }
+
+                    if (user.FirstName != profileData.FirstName)
+                    {
+                        user.FirstName = profileData.FirstName;
+                        needUpdate = true;
+                    }
+                    if (user.LastName != profileData.LastName)
+                    {
+                        user.LastName = profileData.LastName;
+                        needUpdate = true;
+                    }
+
+                    if (user.PhoneNumber != profileData.Phone)
+                    {
+                        user.PhoneNumber = profileData.Phone;
+                        needUpdate = true;
+                    }
+
+                    if (needUpdate)
+                    {
+                        var identityResult = await UserManager.UpdateAsync(user);
+                        if (!identityResult.Succeeded)
+                        {
+                            errorMessage = identityResult.Errors.FirstOrDefault()?.Description ?? "Failed to update user";
+                            return;
+                        }
+                    }
+                }
+            }
+
+            statusMessage = "Profile updated successfully.";
+            isEditMode = false;
+
+            await OnInitializedAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving profile: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private string GetFullName()
     {
-        if (userRole == "Patient")
-            return $"{profileData.FirstName} {profileData.LastName}";
-        return "Dr. Sarah Williams";
+        if (!string.IsNullOrWhiteSpace(profileData.FirstName) || !string.IsNullOrWhiteSpace(profileData.LastName))
+            return $"{profileData.FirstName} {profileData.LastName}".Trim();
+        return profileData.Email ?? "User";
     }
 
     private string GetUserRole() => userRole;

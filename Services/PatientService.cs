@@ -13,6 +13,18 @@ namespace HMS.Services
             _context = context;
         }
 
+        #region Patient Management
+        public async Task<List<Patient>> GetAllPatientsAsync()
+        {
+            return await _context.Patients
+                .Include(p => p.User)
+                .Include(p => p.Appointments)
+                .Include(p => p.Invoices)
+                .OrderByDescending(p => p.Createdat)
+                .ToListAsync();
+        }
+        #endregion
+
         #region Profile Management
 
         // Read Patient

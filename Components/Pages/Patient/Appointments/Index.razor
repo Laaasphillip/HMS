@@ -1,0 +1,94 @@
+﻿@page "/patient/appointments/index"
+@using HMS.Services
+@using HMS.Models
+@inject PatientService PatientService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<h3>My Appointments</h3>
+
+@if (isLoading)
+{
+    <p>Loading your appointments...</p>
+}
+else if (appointments == null || !appointments.Any())
+{
+    <p>You have no appointments booked.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Doctor</th>
+                <th>Status</th>
+                <th>Reason</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var appointment in appointments)
+            {
+                <tr>
+                    <td>@appointment.AppointmentDate.ToString("f")</td>
+                    <td>@($"{appointment.Staff.User.FirstName} {appointment.Staff.User.LastName}")</td>
+                    <td>@appointment.Status</td>
+                    <td>@appointment.Reason</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger"
+                                @onclick="() => DeleteAppointment(appointment.Id)">
+                            Cancel
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Appointment> appointments = new();
+    private bool isLoading = true;
+    private int patientId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        try
+        {
+            // Get logged-in user
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            // Find the patient record linked to this user
+            var patient = await PatientService.GetPatientProfileAsync(userId);
+            if (patient != null)
+            {
+                patientId = patient.Id;
+                appointments = await PatientService.GetAppointmentsAsync(patientId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task DeleteAppointment(int id)
+    {
+        var result = await PatientService.DeleteAppointmentAsync(id);
+        if (result.Success)
+        {
+            appointments = await PatientService.GetAppointmentsAsync(patientId);
+        }
+        else
+        {
+            Console.WriteLine(result.Message);
+        }
+    }
+}

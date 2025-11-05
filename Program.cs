@@ -21,7 +21,6 @@ builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuth
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<PatientService>();
-builder.Services.AddScoped<InvoiceService>();
 
 builder.Services.AddAuthentication(options =>
     {
