@@ -15,9 +15,10 @@ namespace HMS.Models
         public decimal HourlyRate { get; set; }
         public DateTime HiredDate { get; set; } = DateTime.UtcNow;
 
-        public ApplicationUser User { get; set; } // One-to-One with AspNetUsers
-        public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>(); // One-to-Many
-        public ICollection<Schedule> Schedules { get; set; } = new List<Schedule>(); // One-to-Many
-        public ICollection<TimeReport> TimeReports { get; set; } = new List<TimeReport>(); // One-to-Many
+        public ApplicationUser User { get; set; }
+        public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>(); 
+        public ICollection<Schedule> Schedules { get; set; } = new List<Schedule>(); 
+        public ICollection<TimeReport> TimeReports { get; set; } = new List<TimeReport>();
+        public ICollection<Leave> Leaves { get; set; } = new List<Leave>();
     }
 }
