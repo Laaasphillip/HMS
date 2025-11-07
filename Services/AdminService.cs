@@ -1,20 +1,52 @@
 ﻿using HMS.Data;
 using HMS.Models;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace HMS.Services
 {
     public class AdminService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IAuthorizationService _authorizationService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly RoleManager<IdentityRole> _roleManager;
 
-        public AdminService(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        public AdminService(
+            ApplicationDbContext context,
+            IAuthorizationService authorizationService,
+            IHttpContextAccessor httpContextAccessor,
+            UserManager<ApplicationUser> userManager,
+            RoleManager<IdentityRole> roleManager)
         {
             _context = context;
+            _authorizationService = authorizationService;
+            _httpContextAccessor = httpContextAccessor;
             _userManager = userManager;
+            _roleManager = roleManager;
         }
+
+        private ClaimsPrincipal CurrentUser => _httpContextAccessor.HttpContext?.User
+            ?? throw new UnauthorizedAccessException("No user context available");
+
+        private async Task<bool> IsAuthorizedAsync(string policy)
+        {
+            var result = await _authorizationService.AuthorizeAsync(CurrentUser, policy);
+            return result.Succeeded;
+        }
+
+        private async Task EnsureAuthorizedAsync(string policy, string operation)
+        {
+            if (!await IsAuthorizedAsync(policy))
+            {
+                var role = CurrentUser.FindFirst(ClaimTypes.Role)?.Value ?? "Unknown";
+                throw new UnauthorizedAccessException($"User with role '{role}' is not authorized to {operation}");
+            }
+        }
+
 
         #region Patient Management
 
@@ -54,13 +86,13 @@ namespace HMS.Services
         {
             try
             {
+                await EnsureAuthorizedAsync("AdminOrStaff", "create patient");
                 var user = new ApplicationUser
                 {
                     UserName = email,
                     Email = email,
                     FirstName = firstName,
                     LastName = lastName,
-                    Role = "Patient",
                     PersonalNumber = personalNumber,
                     EmailConfirmed = true // Auto-confirm for admin-created accounts
                 };
@@ -101,6 +133,7 @@ namespace HMS.Services
         {
             try
             {
+                await EnsureAuthorizedAsync("AdminOrStaff", "update patient");
                 _context.Patients.Update(patient);
                 await _context.SaveChangesAsync();
                 return true;
@@ -116,6 +149,7 @@ namespace HMS.Services
         {
             try
             {
+                await EnsureAuthorizedAsync("AdminOrStaff", "delete patient");
                 var patient = await _context.Patients
                     .Include(p => p.User)
                     .Include(p => p.Appointments)
@@ -173,7 +207,6 @@ namespace HMS.Services
             string password,
             string firstName,
             string lastName,
-            string role,
             string contractForm,
             string department,
             decimal hourlyRate,
@@ -185,13 +218,13 @@ namespace HMS.Services
         {
             try
             {
+                await EnsureAuthorizedAsync("AdminOrStaff", "create staff");
                 var user = new ApplicationUser
                 {
                     UserName = email,
                     Email = email,
                     FirstName = firstName,
                     LastName = lastName,
-                    Role = role,
                     PersonalNumber = personalNumber,
                     EmailConfirmed = true
                 };
@@ -233,6 +266,7 @@ namespace HMS.Services
         {
             try
             {
+                await EnsureAuthorizedAsync("AdminOrStaff", "update staff");
                 _context.Staff.Update(staff);
                 await _context.SaveChangesAsync();
                 return true;
@@ -248,6 +282,7 @@ namespace HMS.Services
         {
             try
             {
+                await EnsureAuthorizedAsync("AdminOrStaff", "delete staff");
                 var staff = await _context.Staff
                     .Include(s => s.User)
                     .Include(s => s.Appointments)
@@ -282,106 +317,57 @@ namespace HMS.Services
         {
             return await _context.Schedules
                 .Include(s => s.Staff)
-                    .ThenInclude(st => st.User)
-                .Include(s => s.Appointment)
-                .Include(s => s.TimeReport)
-                .OrderBy(s => s.StartTime)
+                    .ThenInclude(staff => staff.User)
+                .OrderByDescending(s => s.StartTime)
                 .ToListAsync();
         }
 
-        public async Task<Schedule?> GetScheduleByIdAsync(int scheduleId)
+        public async Task<Schedule?> GetScheduleByIdAsync(int id)
         {
             return await _context.Schedules
                 .Include(s => s.Staff)
-                    .ThenInclude(st => st.User)
-                .Include(s => s.Appointment)
-                .Include(s => s.TimeReport)
-                .FirstOrDefaultAsync(s => s.Id == scheduleId);
+                    .ThenInclude(staff => staff.User)
+                .FirstOrDefaultAsync(s => s.Id == id);
         }
 
         public async Task<List<Schedule>> GetSchedulesByStaffIdAsync(int staffId)
         {
             return await _context.Schedules
-                .Include(s => s.Appointment)
+                .Include(s => s.Staff)
+                    .ThenInclude(staff => staff.User)
                 .Where(s => s.StaffId == staffId)
-                .OrderBy(s => s.StartTime)
+                .OrderByDescending(s => s.StartTime)
                 .ToListAsync();
         }
 
-
-        public async Task<Schedule?> CreateScheduleAsync(Schedule schedule)
+        public async Task<Schedule> CreateScheduleAsync(Schedule schedule)
         {
-            try
-            {
-                var staffExists = await _context.Staff.AnyAsync(s => s.Id == schedule.StaffId);
-                if (!staffExists)
-                    return null;
+            await EnsureAuthorizedAsync("AdminOrStaff", "create schedules");
 
-                var hasConflict = await _context.Schedules
-                    .AnyAsync(s => s.StaffId == schedule.StaffId &&
-                                   ((s.StartTime <= schedule.StartTime && s.EndTime > schedule.StartTime) ||
-                                    (s.StartTime < schedule.EndTime && s.EndTime >= schedule.EndTime) ||
-                                    (s.StartTime >= schedule.StartTime && s.EndTime <= schedule.EndTime)));
-
-                if (hasConflict)
-                    return null;
-
-                schedule.CreatedAt = DateTime.UtcNow;
-                _context.Schedules.Add(schedule);
-                await _context.SaveChangesAsync();
-
-                return schedule;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error creating schedule: {ex.Message}");
-                return null;
-            }
+            schedule.CreatedAt = DateTime.UtcNow;
+            _context.Schedules.Add(schedule);
+            await _context.SaveChangesAsync();
+            return schedule;
         }
 
         public async Task<bool> UpdateScheduleAsync(Schedule schedule)
         {
-            try
-            {
-                _context.Schedules.Update(schedule);
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error updating schedule: {ex.Message}");
-                return false;
-            }
+            await EnsureAuthorizedAsync("AdminOrStaff", "update schedules");
+
+            _context.Schedules.Update(schedule);
+            return await _context.SaveChangesAsync() > 0;
         }
 
-        public async Task<bool> DeleteScheduleAsync(int scheduleId)
+        public async Task<bool> DeleteScheduleAsync(int id)
         {
-            try
-            {
-                var schedule = await _context.Schedules
-                    .Include(s => s.Appointment)
-                    .Include(s => s.TimeReport)
-                    .FirstOrDefaultAsync(s => s.Id == scheduleId);
+            await EnsureAuthorizedAsync("AdminOnly", "delete schedules");
 
-                if (schedule == null)
-                    return false;
-
-                if (schedule.Appointment != null)
-                    return false;
-
-                if (schedule.TimeReport != null)
-                    return false;
-
-                _context.Schedules.Remove(schedule);
-                await _context.SaveChangesAsync();
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error deleting schedule: {ex.Message}");
+            var schedule = await _context.Schedules.FindAsync(id);
+            if (schedule == null)
                 return false;
-            }
+
+            _context.Schedules.Remove(schedule);
+            return await _context.SaveChangesAsync() > 0;
         }
 
         #endregion

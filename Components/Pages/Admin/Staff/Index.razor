@@ -1,4 +1,4 @@
-﻿@page "/Admin/Staff"
+﻿@page "/admin/staff"
 @using HMS.Models
 @using HMS.Services
 @using Microsoft.JSInterop
@@ -62,7 +62,6 @@
                             <tr>
                                 <th>Staff ID</th>
                                 <th>Full Name</th>
-                                <th>Role</th>
                                 <th>Specialization</th>
                                 <th>Department</th>
                                 <th>Email</th>
@@ -78,11 +77,6 @@
                                 <tr>
                                     <td><span class="badge bg-secondary">@member.Id</span></td>
                                     <td><strong>@member.User.FirstName @member.User.LastName</strong></td>
-                                    <td>
-                                        <span class="badge @GetRoleBadgeClass(member.User.Role ?? "Staff")">
-                                            @member.User.Role
-                                        </span>
-                                    </td>
                                     <td>@member.Specialization</td>
                                     <td>@member.Department</td>
                                     <td>@member.User.Email</td>
@@ -186,17 +180,5 @@
         {
             isDeletingStaff = false;
         }
-    }
-
-    private string GetRoleBadgeClass(string role)
-    {
-        return role switch
-        {
-            "Doctor" => "bg-primary",
-            "Nurse" => "bg-success",
-            "Receptionist" => "bg-warning text-dark",
-            "Administrator" => "bg-info",
-            _ => "bg-secondary"
-        };
     }
 }

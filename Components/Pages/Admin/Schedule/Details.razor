@@ -62,7 +62,6 @@
                                             <strong>@GetStaffFullName(schedule.Staff)</strong>
                                             <br />
                                             <small class="text-muted">
-                                                @schedule.Staff.User.Role
                                                 @if (!string.IsNullOrEmpty(schedule.Staff.Specialization))
                                                 {
                                                     <span> - @schedule.Staff.Specialization</span>
@@ -330,7 +329,7 @@
                 var success = await AdminService.DeleteScheduleAsync(ScheduleId);
                 if (success)
                 {
-                    Navigation.NavigateTo("/Admin/Schedule");
+                    Navigation.NavigateTo("/admin/schedules");
                 }
                 else
                 {
@@ -346,7 +345,7 @@
 
     private void BackToList()
     {
-        Navigation.NavigateTo("/Admin/Schedule");
+        Navigation.NavigateTo("/admin/schedules");
     }
 
     private bool confirm(string message)

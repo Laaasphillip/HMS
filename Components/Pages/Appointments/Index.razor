@@ -351,7 +351,9 @@
                 .OrderByDescending(a => a.AppointmentDate)
                 .ToListAsync();
 
-            patients = await DbContext.Patients.ToListAsync();
+            patients = await DbContext.Patients
+                                        .Include(p => p.User)
+                                        .ToListAsync();
             staffMembers = await DbContext.Staff
                 .Include(s => s.User)  
                 .ToListAsync();

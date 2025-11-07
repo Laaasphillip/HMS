@@ -68,12 +68,6 @@
                                             <td>@staff.User?.LastName</td>
                                         </tr>
                                         <tr>
-                                            <td class="fw-bold">Role:</td>
-                                            <td>
-                                                <span class="badge bg-success">@staff.User?.Role</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
                                             <td class="fw-bold">Specialization:</td>
                                             <td>@staff.Specialization</td>
                                         </tr>
@@ -226,6 +220,6 @@
 
     private void GoBack()
     {
-        Navigation.NavigateTo("/Admin/Staff");
+        Navigation.NavigateTo("/admin/staff");
     }
 }

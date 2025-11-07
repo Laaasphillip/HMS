@@ -124,11 +124,10 @@
                                     <label class="form-label">Status *</label>
                                     <InputSelect @bind-Value="schedule.Status" class="form-select">
                                         <option value="">Select Status</option>
-                                        <option value="Available">Available</option>
-                                        <option value="Booked">Booked</option>
-                                        <option value="Blocked">Blocked</option>
-                                        <option value="Completed">Completed</option>
-                                        <option value="Cancelled">Cancelled</option>
+                                            <option value="Scheduled">Scheduled</option>
+                                            <option value="Active">Active</option>
+                                            <option value="Completed">Completed</option>
+                                            <option value="Cancelled">Cancelled</option>
                                     </InputSelect>
                                     <ValidationMessage For="@(() => schedule.Status)" />
                                 </div>
@@ -207,8 +206,7 @@
             staffList = staffMembers.Select(s => new StaffSummary
             {
                 Id = s.Id,
-                FullName = s.User != null ? $"{s.User.FirstName} {s.User.LastName}".Trim() : "N/A",
-                Role = s.User?.Role ?? "N/A"
+                FullName = s.User != null ? $"{s.User.FirstName} {s.User.LastName}".Trim() : "N/A"
             }).ToList();
         }
         catch (Exception ex)
@@ -319,7 +317,7 @@
 
             if (success)
             {
-                Navigation.NavigateTo("/Admin/Schedule");
+                Navigation.NavigateTo("/admin/schedules");
             }
             else
             {
@@ -345,7 +343,7 @@
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/Admin/Schedule");
+        Navigation.NavigateTo("/admin/schedules");
     }
 
     private void ViewDetails()
