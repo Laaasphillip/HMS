@@ -1,9 +1,14 @@
 ﻿@page "/admin/patient/edit/{PatientId:int}"
+@using HMS.Data
 @using HMS.Models
 @using HMS.Services
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
 @inject AdminService AdminService
-@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "AdminOnly")]
 @rendermode InteractiveServer
 
 <div class="container mt-4">
@@ -241,7 +246,7 @@
 
             if (success)
             {
-                Navigation.NavigateTo("/Admin/Patient");
+                Navigation.NavigateTo("/admin/patients");
             }
             else
             {
@@ -257,7 +262,7 @@
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/Admin/Patient");
+        Navigation.NavigateTo("/admin/patient");
     }
 
     public class PatientEditModel

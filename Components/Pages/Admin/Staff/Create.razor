@@ -1,8 +1,14 @@
 ﻿@page "/admin/staff/create"
+@using HMS.Data
+@using HMS.Models
 @using HMS.Services
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
 @inject AdminService AdminService
-@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "AdminOnly")]
 @rendermode InteractiveServer
 
 <div class="container mt-4">
@@ -60,21 +66,6 @@
 
                             <div class="col-12 mb-3 mt-3">
                                 <h6 class="text-muted border-bottom pb-2"><i class="bi bi-briefcase me-2"></i>Employment Details</h6>
-                            </div>
-
-                            <!-- Role -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Role *</label>
-                                <InputSelect @bind-Value="staff.Role" class="form-select">
-                                    <option value="">Select Role</option>
-                                    <option value="Doctor">Doctor</option>
-                                    <option value="Nurse">Nurse</option>
-                                    <option value="Receptionist">Receptionist</option>
-                                    <option value="Administrator">Administrator</option>
-                                    <option value="Technician">Technician</option>
-                                    <option value="Therapist">Therapist</option>
-                                </InputSelect>
-                                <ValidationMessage For="@(() => staff.Role)" />
                             </div>
 
                             <!-- Specialization -->
@@ -214,7 +205,6 @@
                 password: staff.Password,
                 firstName: staff.FirstName,
                 lastName: staff.LastName,
-                role: staff.Role,
                 contractForm: staff.ContractForm,
                 department: staff.Department,
                 hourlyRate: staff.HourlyRate,
@@ -227,7 +217,7 @@
 
             if (result.Success)
             {
-                Navigation.NavigateTo("/Admin/Staff");
+                Navigation.NavigateTo("/admin/staff");
             }
             else
             {
@@ -246,7 +236,7 @@
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/Admin/Staff");
+        Navigation.NavigateTo("/admin/staff");
     }
 
     public class StaffCreateModel
@@ -263,8 +253,6 @@
         [RegularExpression(@"^\d{10,12}$", ErrorMessage = "Personal number must be 10-12 digits")]
         public string? PersonalNumber { get; set; }
 
-        [Required(ErrorMessage = "Role is required")]
-        public string Role { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Specialization is required")]
         [StringLength(100, ErrorMessage = "Specialization cannot exceed 100 characters")]

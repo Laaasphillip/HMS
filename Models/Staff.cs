@@ -19,6 +19,6 @@ namespace HMS.Models
         public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>(); 
         public ICollection<Schedule> Schedules { get; set; } = new List<Schedule>(); 
         public ICollection<TimeReport> TimeReports { get; set; } = new List<TimeReport>();
-        public ICollection<Leave> Leaves { get; set; } = new List<Leave>();
+/*        public ICollection<Leave> Leaves { get; set; } = new List<Leave>();*/
     }
 }

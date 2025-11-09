@@ -1,8 +1,14 @@
 ﻿@page "/admin/patient/view/{PatientId:int}"
+@using HMS.Data
 @using HMS.Models
 @using HMS.Services
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
 @inject AdminService AdminService
-@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "AdminOrStaff")]
 @rendermode InteractiveServer
 
 <div class="container mt-4">
@@ -207,7 +213,7 @@
 
     private void GoBack()
     {
-        Navigation.NavigateTo("/Admin/Patient");
+        Navigation.NavigateTo("/admin/patients");
     }
 
     private int CalculateAge(DateTime dateOfBirth)

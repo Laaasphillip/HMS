@@ -1,316 +1,671 @@
 ﻿@page "/admin/schedule/create"
 @using HMS.Models
 @using HMS.Services
-@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "AdminOnly")]
 @inject AdminService AdminService
-@inject NavigationManager Navigation
-@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
 @rendermode InteractiveServer
 
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header text-white" style="background-color: #877BAF;">
-                    <h4 class="mb-0">
-                        <i class="bi bi-calendar-plus me-2"></i>
-                        Create New Schedule
-                    </h4>
-                </div>
-                <div class="card-body">
-                    @if (!string.IsNullOrEmpty(errorMessage))
-                    {
-                        <div class="alert alert-danger" role="alert">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            @errorMessage
-                        </div>
-                    }
+<PageTitle>Create Schedule</PageTitle>
 
-                    <EditForm Model="@schedule" OnValidSubmit="HandleSubmit">
-                        <DataAnnotationsValidator />
-                        <ValidationSummary class="text-danger mb-3" />
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="/admin/schedules">Schedules</a></li>
+                    <li class="breadcrumb-item active">Create Schedule</li>
+                </ol>
+            </nav>
+            <h2>Create New Schedule</h2>
+            <p class="text-muted">Create a new staff schedule with optional recurring slots</p>
+        </div>
+    </div>
 
-                        <div class="row">
-                            <!-- Staff Selection -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Staff Member *</label>
-                                <InputSelect @bind-Value="schedule.StaffId" class="form-select">
-                                    <option value="0">Select Staff</option>
-                                    @foreach (var staff in staffList)
-                                    {
-                                        <option value="@staff.Id">@staff.FullName (@staff.Role)</option>
-                                    }
-                                </InputSelect>
-                                <ValidationMessage For="@(() => schedule.StaffId)" />
-                            </div>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
 
-                            <!-- Schedule Date -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Schedule Date *</label>
-                                <InputDate @bind-Value="schedule.ScheduleDate" class="form-control" />
-                                <ValidationMessage For="@(() => schedule.ScheduleDate)" />
-                            </div>
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
 
-                            <!-- Shift Type -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Shift Type</label>
-                                <InputSelect @bind-Value="schedule.ShiftType" class="form-select">
-                                    <option value="">Select Shift Type</option>
-                                    <option value="Morning">Morning</option>
-                                    <option value="Afternoon">Afternoon</option>
-                                    <option value="Evening">Evening</option>
-                                    <option value="Night">Night</option>
-                                    <option value="Full Day">Full Day</option>
-                                </InputSelect>
-                            </div>
+    @if (loading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading staff data...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Schedule Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <EditForm Model="scheduleModel" OnValidSubmit="CreateSchedule">
+                            <DataAnnotationsValidator />
 
-                            <!-- Status -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Status *</label>
-                                <InputSelect @bind-Value="schedule.Status" class="form-select">
-                                    <option value="">Select Status</option>
-                                    <option value="Available">Available</option>
-                                    <option value="Blocked">Blocked</option>
-                                </InputSelect>
-                                <ValidationMessage For="@(() => schedule.Status)" />
-                            </div>
+                            <div class="row">
+                                <!-- Staff Selection -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Staff Member *</label>
+                                    <select class="form-select" @bind="scheduleModel.StaffId">
+                                        <option value="0">-- Select Staff --</option>
+                                        @foreach (var staff in staffMembers)
+                                        {
+                                            <option value="@staff.Id">@staff.User?.FirstName @staff.User?.LastName - @staff.Department</option>
+                                        }
+                                    </select>
+                                    <ValidationMessage For="@(() => scheduleModel.StaffId)" />
+                                </div>
 
-                            <!-- Start Time -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Start Time *</label>
-                                <input type="time"
-                                       class="form-control"
-                                       value="@schedule.StartTimeString"
-                                       @onchange="(e) => HandleTimeChange(e, nameof(schedule.StartTimeString))" />
-                                <ValidationMessage For="@(() => schedule.StartTimeString)" />
-                            </div>
+                                <!-- Shift Type -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Shift Type *</label>
+                                    <select class="form-select" @bind="scheduleModel.ShiftType">
+                                        <option value="Morning">Morning</option>
+                                        <option value="Afternoon">Afternoon</option>
+                                        <option value="Evening">Evening</option>
+                                        <option value="Night">Night</option>
+                                        <option value="Full Day">Full Day</option>
+                                        <option value="On-Call">On-Call</option>
+                                    </select>
+                                    <ValidationMessage For="@(() => scheduleModel.ShiftType)" />
+                                </div>
 
-                            <!-- End Time -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">End Time *</label>
-                                <input type="time"
-                                       class="form-control"
-                                       value="@schedule.EndTimeString"
-                                       @onchange="(e) => HandleTimeChange(e, nameof(schedule.EndTimeString))" />
-                                <ValidationMessage For="@(() => schedule.EndTimeString)" />
-                            </div>
+                                <!-- Date -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Date *</label>
+                                    <input type="date" class="form-control" @bind="scheduleDate" />
+                                </div>
 
-                            <!-- Break Start Time -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Break Start Time</label>
-                                <input type="time"
-                                       class="form-control"
-                                       value="@schedule.BreakStartTimeString"
-                                       @onchange="(e) => HandleTimeChange(e, nameof(schedule.BreakStartTimeString))" />
-                            </div>
+                                <!-- Start Time -->
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Start Time *</label>
+                                    <input type="time"
+                                           class="form-control"
+                                           value="@startTime"
+                                           @onchange="@((ChangeEventArgs e) => { startTime = e.Value?.ToString() ?? ""; UpdateScheduleTimes(); })" />
+                                </div>
 
-                            <!-- Break End Time -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Break End Time</label>
-                                <input type="time"
-                                       class="form-control"
-                                       value="@schedule.BreakEndTimeString"
-                                       @onchange="(e) => HandleTimeChange(e, nameof(schedule.BreakEndTimeString))" />
-                            </div>
+                                <!-- End Time -->
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">End Time *</label>
+                                    <input type="time"
+                                           class="form-control"
+                                           value="@endTime"
+                                           @onchange="@((ChangeEventArgs e) => { endTime = e.Value?.ToString() ?? ""; UpdateScheduleTimes(); })" />
+                                </div>
 
-                            <!-- Is Available -->
-                            <div class="col-md-12 mb-3">
-                                <div class="form-check">
-                                    <InputCheckbox @bind-Value="schedule.IsAvailable" class="form-check-input" id="isAvailable" />
-                                    <label class="form-check-label" for="isAvailable">
-                                        Mark as available for appointments
-                                    </label>
+                                <!-- Break Start -->
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Break Start</label>
+                                    <input type="time"
+                                           class="form-control"
+                                           value="@breakStartTime"
+                                           @onchange="@((ChangeEventArgs e) => { breakStartTime = e.Value?.ToString(); UpdateBreakTimes(); })" />
+                                </div>
+
+                                <!-- Break End -->
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Break End</label>
+                                    <input type="time"
+                                           class="form-control"
+                                           value="@breakEndTime"
+                                           @onchange="@((ChangeEventArgs e) => { breakEndTime = e.Value?.ToString(); UpdateBreakTimes(); })" />
+                                </div>
+
+                                <!-- Duration -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Duration</label>
+                                    <input type="text" class="form-control" value="@GetDuration()" readonly />
+                                </div>
+
+                                <!-- Status -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Status *</label>
+                                    <select class="form-select" @bind="scheduleModel.Status">
+                                        <option value="Scheduled">Scheduled</option>
+                                        <option value="Active">Active</option>
+                                        <option value="Completed">Completed</option>
+                                        <option value="Cancelled">Cancelled</option>
+                                    </select>
+                                    <ValidationMessage For="@(() => scheduleModel.Status)" />
+                                </div>
+
+                                <!-- Is Available -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Availability</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" @bind="scheduleModel.IsAvailable" id="isAvailable" />
+                                        <label class="form-check-label" for="isAvailable">Available for Appointments</label>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Duration Preview -->
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle me-2"></i>
-                            <strong>Schedule Duration:</strong> @CalculateDuration() hours
-                        </div>
+                            <!-- Recurring Options -->
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Recurring Schedule (Optional)</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-12 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" @bind="isRecurring" id="isRecurring" />
+                                                <label class="form-check-label" for="isRecurring">
+                                                    Create recurring schedule
+                                                </label>
+                                            </div>
+                                        </div>
 
-                        <!-- Action Buttons -->
-                        <div class="d-flex gap-2 mt-4">
-                            <button type="submit" class="btn text-white" style="background-color: #877BAF;">
-                                <i class="bi bi-check-circle me-1"></i> Create Schedule
-                            </button>
-                            <button type="button" class="btn btn-secondary" @onclick="Cancel">
-                                <i class="bi bi-x-circle me-1"></i> Cancel
-                            </button>
-                        </div>
-                    </EditForm>
+                                        @if (isRecurring)
+                                        {
+                                            <!-- Days of Week Selection -->
+                                            <div class="col-md-12 mb-3">
+                                                <label class="form-label">Repeat on Days</label>
+                                                <div class="d-flex gap-2 flex-wrap">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" @bind="repeatMonday" id="mon" />
+                                                        <label class="form-check-label" for="mon">Monday</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" @bind="repeatTuesday" id="tue" />
+                                                        <label class="form-check-label" for="tue">Tuesday</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" @bind="repeatWednesday" id="wed" />
+                                                        <label class="form-check-label" for="wed">Wednesday</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" @bind="repeatThursday" id="thu" />
+                                                        <label class="form-check-label" for="thu">Thursday</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" @bind="repeatFriday" id="fri" />
+                                                        <label class="form-check-label" for="fri">Friday</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" @bind="repeatSaturday" id="sat" />
+                                                        <label class="form-check-label" for="sat">Saturday</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" @bind="repeatSunday" id="sun" />
+                                                        <label class="form-check-label" for="sun">Sunday</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- End Date -->
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Repeat Until</label>
+                                                <input type="date" class="form-control" @bind="repeatUntilDate" />
+                                            </div>
+
+                                            <!-- Number of Weeks -->
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Number of Weeks</label>
+                                                <input type="number" class="form-control" @bind="numberOfWeeks" min="1" max="52" />
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Slot Duration Option -->
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Create Time Slots (Optional)</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-12 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" @bind="createSlots" id="createSlots" />
+                                                <label class="form-check-label" for="createSlots">
+                                                    Create multiple time slots
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        @if (createSlots)
+                                        {
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Slot Duration (minutes)</label>
+                                                <select class="form-select" @bind="slotDuration">
+                                                    <option value="15">15 minutes</option>
+                                                    <option value="30">30 minutes</option>
+                                                    <option value="45">45 minutes</option>
+                                                    <option value="60">60 minutes</option>
+                                                    <option value="90">90 minutes</option>
+                                                    <option value="120">120 minutes</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="col-md-12">
+                                                <div class="alert alert-info">
+                                                    <i class="bi bi-info-circle"></i>
+                                                    This will create @GetEstimatedSlotsCount() separate schedule(s) of @slotDuration minutes each.
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex justify-content-between mt-4">
+                                <button type="button" class="btn btn-secondary" @onclick="Cancel">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </button>
+                                <button type="submit" class="btn btn-primary" disabled="@saving">
+                                    @if (saving)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    <i class="bi bi-save"></i> Create Schedule
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Panel -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Preview</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Schedule Summary</h6>
+                        <dl class="row">
+                            <dt class="col-sm-5">Staff:</dt>
+                            <dd class="col-sm-7">
+                                @if (scheduleModel.StaffId > 0)
+                                {
+                                    var staff = staffMembers.FirstOrDefault(s => s.Id == scheduleModel.StaffId);
+                                    <span>@staff?.User?.FirstName @staff?.User?.LastName</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Not selected</span>
+                                }
+                            </dd>
+
+                            <dt class="col-sm-5">Department:</dt>
+                            <dd class="col-sm-7">
+                                @if (scheduleModel.StaffId > 0)
+                                {
+                                    var staff = staffMembers.FirstOrDefault(s => s.Id == scheduleModel.StaffId);
+                                    <span class="badge bg-info">@staff?.Department</span>
+                                }
+                            </dd>
+
+                            <dt class="col-sm-5">Date:</dt>
+                            <dd class="col-sm-7">@scheduleDate.ToString("MMM dd, yyyy")</dd>
+
+                            <dt class="col-sm-5">Time:</dt>
+                            <dd class="col-sm-7">@startTime - @endTime</dd>
+
+                            <dt class="col-sm-5">Duration:</dt>
+                            <dd class="col-sm-7">@GetDuration()</dd>
+
+                            <dt class="col-sm-5">Shift Type:</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge bg-@GetShiftTypeColor(scheduleModel.ShiftType)">@scheduleModel.ShiftType</span>
+                            </dd>
+
+                            <dt class="col-sm-5">Status:</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge bg-@GetStatusColor(scheduleModel.Status)">@scheduleModel.Status</span>
+                            </dd>
+
+                            <dt class="col-sm-5">Available:</dt>
+                            <dd class="col-sm-7">
+                                @if (scheduleModel.IsAvailable)
+                                {
+                                    <span class="badge bg-success">Yes</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">No</span>
+                                }
+                            </dd>
+
+                            @if (!string.IsNullOrEmpty(breakStartTime) && !string.IsNullOrEmpty(breakEndTime))
+                            {
+                                <dt class="col-sm-5">Break:</dt>
+                                <dd class="col-sm-7">@breakStartTime - @breakEndTime</dd>
+                            }
+                        </dl>
+
+                        @if (isRecurring)
+                        {
+                            <hr />
+                            <h6>Recurring Details</h6>
+                            <p class="small mb-1"><strong>Repeat on:</strong></p>
+                            <p class="small">@GetSelectedDays()</p>
+                            <p class="small"><strong>Until:</strong> @repeatUntilDate.ToString("MMM dd, yyyy")</p>
+                            <p class="small"><strong>Weeks:</strong> @numberOfWeeks</p>
+                        }
+
+                        @if (createSlots)
+                        {
+                            <hr />
+                            <h6>Time Slots</h6>
+                            <p class="small">Creating @GetEstimatedSlotsCount() slots of @slotDuration minutes each</p>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    }
 </div>
 
 @code {
-    public class StaffSummary
-    {
-        public int Id { get; set; }
-        public string FullName { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty;
-    }
+    [SupplyParameterFromQuery(Name = "date")]
+    public string? PreselectedDate { get; set; }
 
-    private ScheduleCreateModel schedule = new();
-    private List<StaffSummary> staffList = new();
+    private List<HMS.Models.Staff> staffMembers = new();
+    private ScheduleCreateModel scheduleModel = new();
+
+    private DateTime scheduleDate = DateTime.Today;
+    private string startTime = "08:00";
+    private string endTime = "16:00";
+    private string? breakStartTime;
+    private string? breakEndTime;
+
+    private bool isRecurring = false;
+    private bool repeatMonday = false;
+    private bool repeatTuesday = false;
+    private bool repeatWednesday = false;
+    private bool repeatThursday = false;
+    private bool repeatFriday = false;
+    private bool repeatSaturday = false;
+    private bool repeatSunday = false;
+    private DateTime repeatUntilDate = DateTime.Today.AddMonths(1);
+    private int numberOfWeeks = 4;
+
+    private bool createSlots = false;
+    private int slotDuration = 30;
+
+    private bool loading = true;
+    private bool saving = false;
     private string? errorMessage;
+    private string? successMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadStaffListAsync();
+        await LoadData();
+
+        // Check if a date was pre-selected from query parameter
+        if (!string.IsNullOrEmpty(PreselectedDate) && DateTime.TryParse(PreselectedDate, out var date))
+        {
+            scheduleDate = date;
+        }
+
+        scheduleModel.ShiftType = "Morning";
+        scheduleModel.Status = "Scheduled";
+        scheduleModel.IsAvailable = true;
     }
 
-    private async Task LoadStaffListAsync()
+    private async Task LoadData()
     {
         try
         {
-            var staffMembers = await AdminService.GetAllStaffAsync();
-            staffList = staffMembers.Select(s => new StaffSummary
-            {
-                Id = s.Id,
-                FullName = s.User != null ? $"{s.User.FirstName} {s.User.LastName}".Trim() : "N/A",
-                Role = s.User?.Role ?? "N/A"
-            }).ToList();
+            loading = true;
+            errorMessage = null;
+            staffMembers = await AdminService.GetAllStaffAsync();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading staff list: {ex.Message}");
-            staffList = new List<StaffSummary>();
+            errorMessage = $"Error loading staff data: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
         }
     }
 
-    private void HandleTimeChange(ChangeEventArgs e, string propertyName)
+    private void UpdateScheduleTimes()
     {
-        var timeString = e.Value?.ToString();
-
-        if (string.IsNullOrEmpty(timeString))
+        if (TimeSpan.TryParse(startTime, out var start) && TimeSpan.TryParse(endTime, out var end))
         {
-            // Set default time or leave as current value
-            return;
-        }
-
-        if (TimeSpan.TryParse(timeString, out var timeSpan))
-        {
-            switch (propertyName)
-            {
-                case nameof(ScheduleCreateModel.StartTimeString):
-                    schedule.StartTimeString = timeString;
-                    break;
-                case nameof(ScheduleCreateModel.EndTimeString):
-                    schedule.EndTimeString = timeString;
-                    break;
-                case nameof(ScheduleCreateModel.BreakStartTimeString):
-                    schedule.BreakStartTimeString = timeString;
-                    break;
-                case nameof(ScheduleCreateModel.BreakEndTimeString):
-                    schedule.BreakEndTimeString = timeString;
-                    break;
-            }
-            StateHasChanged();
+            scheduleModel.StartTime = scheduleDate.Date.Add(start);
+            scheduleModel.EndTime = scheduleDate.Date.Add(end);
         }
     }
 
-    private double CalculateDuration()
+    private void UpdateBreakTimes()
     {
-        if (TimeSpan.TryParse(schedule.StartTimeString, out var startTime) &&
-            TimeSpan.TryParse(schedule.EndTimeString, out var endTime))
+        if (!string.IsNullOrEmpty(breakStartTime) && TimeSpan.TryParse(breakStartTime, out var breakStart))
         {
-            return (endTime - startTime).TotalHours;
+            scheduleModel.BreakStart = scheduleDate.Date.Add(breakStart);
+        }
+        else
+        {
+            scheduleModel.BreakStart = null;
+        }
+
+        if (!string.IsNullOrEmpty(breakEndTime) && TimeSpan.TryParse(breakEndTime, out var breakEnd))
+        {
+            scheduleModel.BreakEnd = scheduleDate.Date.Add(breakEnd);
+        }
+        else
+        {
+            scheduleModel.BreakEnd = null;
+        }
+    }
+
+    private string GetDuration()
+    {
+        UpdateScheduleTimes();
+        if (scheduleModel.EndTime > scheduleModel.StartTime)
+        {
+            var duration = scheduleModel.EndTime - scheduleModel.StartTime;
+            return $"{duration.TotalHours:N1} hours";
+        }
+        return "0 hours";
+    }
+
+    private int GetEstimatedSlotsCount()
+    {
+        UpdateScheduleTimes();
+        if (scheduleModel.EndTime > scheduleModel.StartTime)
+        {
+            var totalMinutes = (scheduleModel.EndTime - scheduleModel.StartTime).TotalMinutes;
+            return (int)(totalMinutes / slotDuration);
         }
         return 0;
     }
 
-    private async Task HandleSubmit()
+    private string GetSelectedDays()
+    {
+        var days = new List<string>();
+        if (repeatMonday) days.Add("Mon");
+        if (repeatTuesday) days.Add("Tue");
+        if (repeatWednesday) days.Add("Wed");
+        if (repeatThursday) days.Add("Thu");
+        if (repeatFriday) days.Add("Fri");
+        if (repeatSaturday) days.Add("Sat");
+        if (repeatSunday) days.Add("Sun");
+        return days.Any() ? string.Join(", ", days) : "No days selected";
+    }
+
+    private async Task CreateSchedule()
     {
         try
         {
-            // Validate required times
-            if (!TimeSpan.TryParse(schedule.StartTimeString, out var startTime) ||
-                !TimeSpan.TryParse(schedule.EndTimeString, out var endTime))
+            saving = true;
+            errorMessage = null;
+            UpdateScheduleTimes();
+            UpdateBreakTimes();
+
+            if (scheduleModel.StaffId == 0)
             {
-                errorMessage = "Please enter valid start and end times";
+                errorMessage = "Please select a staff member.";
                 return;
             }
 
-            // Parse break times with fallback to default values
-            TimeSpan breakStartTime = TimeSpan.Zero;
-            TimeSpan breakEndTime = TimeSpan.Zero;
+            var schedulesToCreate = new List<HMS.Models.Schedule>();
 
-            if (!string.IsNullOrEmpty(schedule.BreakStartTimeString))
-                TimeSpan.TryParse(schedule.BreakStartTimeString, out breakStartTime);
-
-            if (!string.IsNullOrEmpty(schedule.BreakEndTimeString))
-                TimeSpan.TryParse(schedule.BreakEndTimeString, out breakEndTime);
-
-            // Create a new schedule
-            var newSchedule = new Schedule
+            if (createSlots)
             {
-                StaffId = schedule.StaffId,
-                StartTime = schedule.ScheduleDate.Add(startTime),
-                EndTime = schedule.ScheduleDate.Add(endTime),
-                BreakStart = schedule.ScheduleDate.Add(breakStartTime),
-                BreakEnd = schedule.ScheduleDate.Add(breakEndTime),
-                ShiftType = schedule.ShiftType,
-                Status = schedule.Status,
-                IsAvailable = schedule.IsAvailable,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            var createdSchedule = await AdminService.CreateScheduleAsync(newSchedule);
-
-            if (createdSchedule != null)
+                // Create multiple time slots
+                var currentTime = scheduleModel.StartTime;
+                while (currentTime.AddMinutes(slotDuration) <= scheduleModel.EndTime)
+                {
+                    var schedule = new HMS.Models.Schedule
+                    {
+                        StaffId = scheduleModel.StaffId,
+                        StartTime = currentTime,
+                        EndTime = currentTime.AddMinutes(slotDuration),
+                        BreakStart = scheduleModel.BreakStart ?? currentTime,  // or DateTime.MinValue
+                        BreakEnd = scheduleModel.BreakEnd ?? currentTime.AddMinutes(slotDuration),
+                        ShiftType = scheduleModel.ShiftType,
+                        Status = scheduleModel.Status,
+                        IsAvailable = scheduleModel.IsAvailable
+                    };
+                    schedulesToCreate.Add(schedule);
+                    currentTime = currentTime.AddMinutes(slotDuration);
+                }
+            }
+            else if (isRecurring)
             {
-                Navigation.NavigateTo("/Admin/Schedule");
+                // Create recurring schedules
+                var selectedDays = new List<DayOfWeek>();
+                if (repeatMonday) selectedDays.Add(DayOfWeek.Monday);
+                if (repeatTuesday) selectedDays.Add(DayOfWeek.Tuesday);
+                if (repeatWednesday) selectedDays.Add(DayOfWeek.Wednesday);
+                if (repeatThursday) selectedDays.Add(DayOfWeek.Thursday);
+                if (repeatFriday) selectedDays.Add(DayOfWeek.Friday);
+                if (repeatSaturday) selectedDays.Add(DayOfWeek.Saturday);
+                if (repeatSunday) selectedDays.Add(DayOfWeek.Sunday);
+
+                if (!selectedDays.Any())
+                {
+                    errorMessage = "Please select at least one day for recurring schedule.";
+                    return;
+                }
+
+                var currentDate = scheduleDate;
+                var endDate = repeatUntilDate;
+
+                while (currentDate <= endDate)
+                {
+                    if (selectedDays.Contains(currentDate.DayOfWeek))
+                    {
+                        var start = currentDate.Date.Add(scheduleModel.StartTime.TimeOfDay);
+                        var end = currentDate.Date.Add(scheduleModel.EndTime.TimeOfDay);
+
+                        var schedule = new HMS.Models.Schedule
+                        {
+                            StaffId = scheduleModel.StaffId,
+                            StartTime = start,
+                            EndTime = end,
+                            BreakStart = scheduleModel.BreakStart.HasValue
+                            ? currentDate.Date.Add(scheduleModel.BreakStart.Value.TimeOfDay)
+                            : start,  // Default to start time if no break
+                            BreakEnd = scheduleModel.BreakEnd.HasValue
+                            ? currentDate.Date.Add(scheduleModel.BreakEnd.Value.TimeOfDay)
+                            : start,  // Default to start time if no break
+                            ShiftType = scheduleModel.ShiftType,
+                            Status = scheduleModel.Status,
+                            IsAvailable = scheduleModel.IsAvailable
+                        };
+                        schedulesToCreate.Add(schedule);
+                    }
+                    currentDate = currentDate.AddDays(1);
+                }
             }
             else
             {
-                errorMessage = "Failed to create schedule. There may be a schedule conflict or staff member not found.";
+                // Create a single schedule
+                var schedule = new HMS.Models.Schedule
+                {
+                    StaffId = scheduleModel.StaffId,
+                    StartTime = scheduleModel.StartTime,
+                    EndTime = scheduleModel.EndTime,
+                    BreakStart = scheduleModel.BreakStart ?? scheduleModel.StartTime,
+                    BreakEnd = scheduleModel.BreakEnd ?? scheduleModel.EndTime,
+                    ShiftType = scheduleModel.ShiftType,
+                    Status = scheduleModel.Status,
+                    IsAvailable = scheduleModel.IsAvailable
+                };
+                schedulesToCreate.Add(schedule);
             }
+
+            // Create all schedules
+            foreach (var schedule in schedulesToCreate)
+            {
+                await AdminService.CreateScheduleAsync(schedule);
+            }
+
+            successMessage = $"Successfully created {schedulesToCreate.Count} schedule(s)!";
+            await Task.Delay(1500);
+            NavigationManager.NavigateTo("/admin/schedules");
         }
         catch (Exception ex)
         {
             errorMessage = $"Error creating schedule: {ex.Message}";
-            Console.WriteLine($"Error in HandleSubmit: {ex}");
+        }
+        finally
+        {
+            saving = false;
         }
     }
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/Admin/Schedule");
+        NavigationManager.NavigateTo("/admin/schedules");
     }
 
-    public class ScheduleCreateModel
+    private string GetStatusColor(string status) => status switch
     {
-        [Required(ErrorMessage = "Staff member is required")]
-        [Range(1, int.MaxValue, ErrorMessage = "Please select a staff member")]
+        "Scheduled" => "primary",
+        "Active" => "success",
+        "Completed" => "secondary",
+        "Cancelled" => "danger",
+        _ => "secondary"
+    };
+
+    private string GetShiftTypeColor(string shiftType) => shiftType switch
+    {
+        "Morning" => "warning",
+        "Afternoon" => "info",
+        "Evening" => "primary",
+        "Night" => "dark",
+        "Full Day" => "success",
+        "On-Call" => "danger",
+        _ => "secondary"
+    };
+
+    private class ScheduleCreateModel
+    {
         public int StaffId { get; set; }
-
-        [Required(ErrorMessage = "Schedule date is required")]
-        [DataType(DataType.Date)]
-        public DateTime ScheduleDate { get; set; } = DateTime.Today.AddDays(1);
-
-        [Required(ErrorMessage = "Start time is required")]
-        [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Please enter a valid time in HH:mm format")]
-        public string StartTimeString { get; set; } = "09:00";
-
-        [Required(ErrorMessage = "End time is required")]
-        [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Please enter a valid time in HH:mm format")]
-        public string EndTimeString { get; set; } = "17:00";
-
-        [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Please enter a valid time in HH:mm format")]
-        public string BreakStartTimeString { get; set; } = "12:00";
-
-        [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Please enter a valid time in HH:mm format")]
-        public string BreakEndTimeString { get; set; } = "12:30";
-
-        public string ShiftType { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Status is required")]
-        public string Status { get; set; } = "Available";
-
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public DateTime? BreakStart { get; set; }
+        public DateTime? BreakEnd { get; set; }
+        public string ShiftType { get; set; } = "Morning";
+        public string Status { get; set; } = "Scheduled";
         public bool IsAvailable { get; set; } = true;
     }
 }

@@ -352,9 +352,8 @@
                 .ToListAsync();
 
             patients = await DbContext.Patients
-                .Include(s => s.User)
-                .ToListAsync();
-
+                                        .Include(p => p.User)
+                                        .ToListAsync();
             staffMembers = await DbContext.Staff
                 .Include(s => s.User)  
                 .ToListAsync();

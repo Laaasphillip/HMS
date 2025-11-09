@@ -1,9 +1,14 @@
 ﻿@page "/admin/staff/edit/{StaffId:int}"
+@using HMS.Data
 @using HMS.Models
 @using HMS.Services
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
 @inject AdminService AdminService
-@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "AdminOnly")]
 @rendermode InteractiveServer
 
 <div class="container mt-4">
@@ -60,20 +65,6 @@
                                     <label class="form-label">Last Name *</label>
                                     <InputText @bind-Value="staff.LastName" class="form-control" placeholder="Enter last name" />
                                     <ValidationMessage For="@(() => staff.LastName)" />
-                                </div>
-
-                                <!-- Role -->
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Role *</label>
-                                    <InputSelect @bind-Value="staff.Role" class="form-select">
-                                        <option value="">Select Role</option>
-                                        <option value="Doctor">Doctor</option>
-                                        <option value="Nurse">Nurse</option>
-                                        <option value="Receptionist">Receptionist</option>
-                                        <option value="Administrator">Administrator</option>
-                                        <option value="Technician">Technician</option>
-                                    </InputSelect>
-                                    <ValidationMessage For="@(() => staff.Role)" />
                                 </div>
 
                                 <!-- Specialization -->
@@ -200,7 +191,6 @@
                 Id = dbStaff.Id,
                 FirstName = dbStaff.User?.FirstName ?? "",
                 LastName = dbStaff.User?.LastName ?? "",
-                Role = dbStaff.User?.Role ?? "",
                 Specialization = dbStaff.Specialization ?? "",
                 PhoneNumber = dbStaff.User?.PhoneNumber ?? "",
                 PersonalNumber = dbStaff.User?.PersonalNumber ?? "",
@@ -254,7 +244,6 @@
             {
                 dbStaff.User.FirstName = staff.FirstName;
                 dbStaff.User.LastName = staff.LastName;
-                dbStaff.User.Role = staff.Role;
                 dbStaff.User.PhoneNumber = staff.PhoneNumber;
                 dbStaff.User.PersonalNumber = staff.PersonalNumber;
                 dbStaff.User.Email = staff.Email;
@@ -264,7 +253,7 @@
 
             if (success)
             {
-                Navigation.NavigateTo("/Admin/Staff");
+                Navigation.NavigateTo("/admin/staff");
             }
             else
             {
@@ -280,7 +269,7 @@
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/Admin/Staff");
+        Navigation.NavigateTo("/admin/staff");
     }
 
     public class StaffEditModel
@@ -296,8 +285,6 @@
         [StringLength(100, ErrorMessage = "Last name cannot exceed 100 characters")]
         public string LastName { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Role is required")]
-        public string Role { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Specialization is required")]
         [StringLength(100, ErrorMessage = "Specialization cannot exceed 100 characters")]

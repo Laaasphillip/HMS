@@ -1,8 +1,14 @@
 ﻿@page "/admin/staff/view/{StaffId:int}"
+@using HMS.Data
 @using HMS.Models
 @using HMS.Services
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
 @inject AdminService AdminService
-@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "AdminOrStaff")]
 @rendermode InteractiveServer
 
 <div class="container mt-4">
@@ -66,12 +72,6 @@
                                         <tr>
                                             <td class="fw-bold">Last Name:</td>
                                             <td>@staff.User?.LastName</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-bold">Role:</td>
-                                            <td>
-                                                <span class="badge bg-success">@staff.User?.Role</span>
-                                            </td>
                                         </tr>
                                         <tr>
                                             <td class="fw-bold">Specialization:</td>
@@ -226,6 +226,6 @@
 
     private void GoBack()
     {
-        Navigation.NavigateTo("/Admin/Staff");
+        Navigation.NavigateTo("/admin/staff");
     }
 }

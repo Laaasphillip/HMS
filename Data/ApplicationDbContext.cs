@@ -1,3 +1,4 @@
+using HMS.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection.Emit;
@@ -16,7 +17,7 @@ namespace HMS.Data
         public DbSet<InvoiceItem> InvoiceItems { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
-        public DbSet<Leave> Leaves { get; set; }
+        //public DbSet<Leave> Leaves { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -100,13 +101,13 @@ namespace HMS.Data
             });
             // LEAVES
          
-            builder.Entity<Leave>(entity =>
+/*            builder.Entity<Leave>(entity =>
             {
                 entity.HasOne(e => e.Staff)
                 .WithMany(c => c.Leaves)
                 .HasForeignKey(entity => entity.StaffId)
                 .OnDelete(DeleteBehavior.Cascade);
-            });
+            });*/
         }
     }
 }

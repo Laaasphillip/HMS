@@ -1,4 +1,4 @@
-﻿@page "/patient/appointments/create"
+﻿@* @page "/patient/appointments/create"
 @using HMS.Models
 @using HMS.Services
 @inject AdminService AdminService
@@ -630,4 +630,4 @@
     {
         Navigation.NavigateTo($"/admin/schedule/create?date={currentNavDate:yyyy-MM-dd}");
     }
-}
+} *@
