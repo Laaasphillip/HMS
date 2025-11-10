@@ -51,7 +51,25 @@ namespace HMS.Services
         public async Task<List<TimeReport>> GetAllTimeReportsAsync()
         {
             await EnsureAuthorizedAsync("AdminOnly", "view all time reports");
-            
+
+            return await _context.TimeReports
+        .Include(tr => tr.Staff)
+            .ThenInclude(s => s.User)
+        .Include(tr => tr.Schedule)
+        .OrderByDescending(tr => tr.ClockIn)
+        .ToListAsync();
+
+        }
+
+        public async Task<TimeReport?> GetTimeReportByIdAsync(int id)
+        {
+            await EnsureAuthorizedAsync("AdminOnly", "view time report");
+
+            return await _context.TimeReports
+                .Include(tr => tr.Staff)
+                    .ThenInclude(s => s.User)
+                .Include(tr => tr.Schedule)
+                .FirstOrDefaultAsync(tr => tr.Id == id);
         }
 
 
