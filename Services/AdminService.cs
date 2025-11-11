@@ -131,16 +131,29 @@ namespace HMS.Services
 
         public async Task<bool> UpdatePatientAsync(Patient patient)
         {
+            if (patient == null) return false;
+
+            var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext.User);
+            if (user == null) return false;
+
+            var isPatient = await _userManager.IsInRoleAsync(user, "Patient");
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+
+            if (!isAdmin && (!isPatient || user.Id != patient.UserId))
+            {
+                Console.WriteLine("Error updating patient: User with role 'Patient' is not authorized to update patient");
+                return false;
+            }
+
             try
             {
-                await EnsureAuthorizedAsync("AdminOrStaff", "update patient");
                 _context.Patients.Update(patient);
                 await _context.SaveChangesAsync();
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error updating patient: {ex.Message}");
+                Console.WriteLine($"DB Error: {ex.Message}");
                 return false;
             }
         }
@@ -264,16 +277,29 @@ namespace HMS.Services
 
         public async Task<bool> UpdateStaffAsync(Staff staff)
         {
+            if (staff == null) return false;
+
+            var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext.User);
+            if (user == null) return false;
+
+            var isStaff = await _userManager.IsInRoleAsync(user, "Staff");
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+
+            if (!isAdmin && (!isStaff || user.Id != staff.UserId))
+            {
+                Console.WriteLine("Error updating staff: Not authorized");
+                return false;
+            }
+
             try
             {
-                await EnsureAuthorizedAsync("AdminOrStaff", "update staff");
                 _context.Staff.Update(staff);
                 await _context.SaveChangesAsync();
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error updating staff: {ex.Message}");
+                Console.WriteLine($"DB Error: {ex.Message}");
                 return false;
             }
         }
@@ -384,16 +410,12 @@ namespace HMS.Services
         public async Task<ApplicationUser?> GetCurrentUserAsync()
         {
             var userId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return null;
 
-            if (string.IsNullOrEmpty(userId))
-                return null;
-
-            var user = await _userManager.Users
+            return await _context.Users
                 .Include(u => u.Patient)
                 .Include(u => u.Staff)
                 .FirstOrDefaultAsync(u => u.Id == userId);
-            return user;
-            
         }
 
         public async Task<ApplicationUser?> GetUserByIdAsync (string id)
@@ -422,14 +444,26 @@ namespace HMS.Services
         public async Task<bool> UpdateUserAsync(ApplicationUser user)
         {
             if (user == null) return false;
+
             try
             {
-                var result = await _userManager.UpdateAsync(user);
-                return result.Succeeded;
+                // Step 1: Update Identity fields (Email, Phone, etc.)
+                var identityResult = await _userManager.UpdateAsync(user);
+                if (!identityResult.Succeeded)
+                {
+                    Console.WriteLine("Identity update failed: " + string.Join(", ", identityResult.Errors.Select(e => e.Description)));
+                    return false;
+                }
+
+                // Step 2: Save custom fields in ApplicationUser (FirstName, LastName, etc.)
+                _context.Users.Update(user);
+                var rowsAffected = await _context.SaveChangesAsync();
+
+                return rowsAffected > 0;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error updating user: {ex}");
+                Console.WriteLine($"Error updating user: {ex.Message}");
                 return false;
             }
         }

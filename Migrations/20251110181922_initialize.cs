@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace HMS.Migrations
 {
     /// <inheritdoc />
-    public partial class Initialize : Migration
+    public partial class initialize : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -32,7 +32,6 @@ namespace HMS.Migrations
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     FirstName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     LastName = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Role = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     PersonalNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -289,9 +288,9 @@ namespace HMS.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     StaffId = table.Column<int>(type: "int", nullable: false),
-                    ScheduleId = table.Column<int>(type: "int", nullable: false),
+                    ScheduleId = table.Column<int>(type: "int", nullable: true),
                     ClockIn = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ClockOut = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ClockOut = table.Column<DateTime>(type: "datetime2", nullable: true),
                     HoursWorked = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     ActivityType = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Notes = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -321,7 +320,7 @@ namespace HMS.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     PatientId = table.Column<int>(type: "int", nullable: false),
-                    AppointmentId = table.Column<int>(type: "int", nullable: false),
+                    AppointmentId = table.Column<int>(type: "int", nullable: true),
                     InvoiceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     SubTotal = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     TaxAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
@@ -459,7 +458,8 @@ namespace HMS.Migrations
                 name: "IX_Invoices_AppointmentId",
                 table: "Invoices",
                 column: "AppointmentId",
-                unique: true);
+                unique: true,
+                filter: "[AppointmentId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Invoices_PatientId",
@@ -487,7 +487,8 @@ namespace HMS.Migrations
                 name: "IX_TimeReports_ScheduleId",
                 table: "TimeReports",
                 column: "ScheduleId",
-                unique: true);
+                unique: true,
+                filter: "[ScheduleId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TimeReports_StaffId",

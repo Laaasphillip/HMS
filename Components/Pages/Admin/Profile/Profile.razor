@@ -1,87 +1,102 @@
 ﻿@page "/admin/profile/profile"
 @using HMS.Services
+@using HMS.Data
+@using HMS.Models
 @using Microsoft.AspNetCore.Authorization
-@inject AdminService AdminService
-@rendermode InteractiveServer
-
 @inject AdminService AdminService
 @inject NavigationManager NavigationManager
 @attribute [Authorize(Policy = "Authenticated")]
-@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
 
-<div class="container mt-4">
+<div class="container py-5">
     @if (isLoading)
     {
-        <div class="text-center my-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2">Loading your profile...</p>
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" style="width:3rem;height:3rem;" role="status">
+                <span class="visually-hidden">Loading…</span>
+            </div>
+            <p class="mt-3 text-muted fs-5">Loading your profile…</p>
         </div>
     }
     else if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div class="alert alert-danger">@errorMessage</div>
+        <div class="alert alert-danger rounded-3 shadow-sm" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMessage
+        </div>
     }
     else
     {
         <EditForm Model="@profileData" OnValidSubmit="HandleSave">
             <DataAnnotationsValidator />
 
-            <!-- Profile Header -->
-            <div class="card mb-4">
+            <!-- HEADER CARD -->
+            <div class="card shadow-sm mb-4 border-0">
                 <div class="card-body p-4">
-                    <div class="d-flex align-items-center justify-content-between mb-4">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                         <div class="d-flex align-items-center gap-3">
-                            <img src="https://ui-avatars.com/api/?name=@GetFullName()&size=80&background=0ea5e9&color=fff&bold=true"
-                                 class="rounded-circle" alt="Profile" style="width: 80px; height: 80px;">
+                            <div class="avatar avatar-lg bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-3">
+                                @GetInitials()
+                            </div>
                             <div>
-                                <h3 class="mb-1">@GetFullName()</h3>
-                                <p class="text-muted mb-0">Role: @userRole</p>
+                                <h3 class="mb-1 fw-semibold">@GetFullName()</h3>
+                                <p class="text-muted mb-1">
+                                    <i class="bi bi-shield-check text-success me-1"></i>
+                                    Role: <strong>@userRole</strong>
+                                </p>
+                                <small class="text-muted">
+                                    <i class="bi bi-fingerprint me-1"></i>User ID: @profileData.UserId
+                                </small>
                             </div>
                         </div>
+
                         @if (!isEditMode)
                         {
-                            <button type="button" class="btn btn-primary" @onclick="EnableEditMode">
-                                <i class="bi bi-pencil me-1"></i> Edit
+                            <button type="button" class="btn btn-primary px-4" @onclick="EnableEditMode">
+                                <i class="bi bi-pencil-square me-2"></i>Edit Profile
                             </button>
                         }
                     </div>
 
-                    <div class="row g-3">
+                    <hr class="my-4">
+
+                    <div class="row g-4">
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Email</label>
+                            <label class="form-label fw-medium text-muted small">Email Address</label>
                             @if (isEditMode)
                             {
-                                <InputText @bind-Value="profileData.Email" class="form-control" />
+                                <InputText @bind-Value="profileData.Email" class="form-control form-control-lg" placeholder="name@example.com" />
                             }
                             else
                             {
-                                <p class="mb-0">@profileData.Email</p>
+                                <p class="fs-5 mb-0">@profileData.Email</p>
                             }
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Phone</label>
+                            <label class="form-label fw-medium text-muted small">Phone Number</label>
                             @if (isEditMode)
                             {
-                                <InputText @bind-Value="profileData.Phone" class="form-control" />
+                                <InputText @bind-Value="profileData.Phone" class="form-control form-control-lg" placeholder="+46 73 528 7879" />
                             }
                             else
                             {
-                                <p class="mb-0">@profileData.Phone</p>
+                                <p class="fs-5 mb-0">@profileData.Phone</p>
                             }
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Personal Info -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">Personal Information</h5>
+            <!-- PERSONAL CARD -->
+            <div class="card shadow-sm mb-4 border-0">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="mb-0 fw-semibold text-primary">
+                        <i class="bi bi-person-badge me-2"></i>Personal Information
+                    </h5>
                 </div>
-                <div class="card-body p-4">
-                    <div class="row g-3">
+                <div class="card-body">
+                    <div class="row g-4">
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">First Name</label>
+                            <label class="form-label fw-medium text-muted small">First Name</label>
                             @if (isEditMode)
                             {
                                 <InputText @bind-Value="profileData.FirstName" class="form-control" />
@@ -91,8 +106,9 @@
                                 <p class="mb-0">@profileData.FirstName</p>
                             }
                         </div>
+
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Last Name</label>
+                            <label class="form-label fw-medium text-muted small">Last Name</label>
                             @if (isEditMode)
                             {
                                 <InputText @bind-Value="profileData.LastName" class="form-control" />
@@ -102,78 +118,346 @@
                                 <p class="mb-0">@profileData.LastName</p>
                             }
                         </div>
+
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Blood Group</label>
+                            <label class="form-label fw-medium text-muted small">Personal Number</label>
                             @if (isEditMode)
                             {
-                                <InputSelect @bind-Value="profileData.BloodGroup" class="form-select">
-                                    <option value="">Select</option>
-                                    <option value="A+">A+</option>
-                                    <option value="A-">A-</option>
-                                    <option value="B+">B+</option>
-                                    <option value="B-">B-</option>
-                                    <option value="O+">O+</option>
-                                    <option value="O-">O-</option>
-                                    <option value="AB+">AB+</option>
-                                    <option value="AB-">AB-</option>
-                                </InputSelect>
+                                <InputText @bind-Value="profileData.PersonalNumber" class="form-control" />
                             }
                             else
                             {
-                                <p class="mb-0"><span class="badge bg-danger">@profileData.BloodGroup</span></p>
+                                <p class="mb-0">@profileData.PersonalNumber</p>
                             }
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Save Buttons -->
-            @if (isEditMode)
-            {
-                <div class="card mt-4">
-                    <div class="card-body p-3">
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-lg me-1"></i> Save
-                            </button>
-                            <button type="button" class="btn btn-secondary" @onclick="CancelEdit">
-                                <i class="bi bi-x-lg me-1"></i> Cancel
-                            </button>
+            <!-- PATIENT SECTION -->
+            <AuthorizeView Policy="PatientOnly" Context="patientAuth">
+                <Authorized>
+                    <div class="card shadow-sm mb-4 border-0">
+                        <div class="card-header bg-transparent border-0 d-flex align-items-center">
+                            <h5 class="mb-0 fw-semibold text-success">
+                                <i class="bi bi-heart-pulse me-2"></i>Patient Details
+                            </h5>
+                            @if (patientAuth.User.IsInRole("Admin"))
+                            {
+                                <span class="badge bg-warning text-dark ms-2">Admin View</span>
+                            }
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-4">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-medium text-muted small">Date of Birth</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputDate @bind-Value="profileData.Dateofbirth" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.Dateofbirth?.ToString("yyyy-MM-dd")</p>
+                                    }
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label fw-medium text-muted small">Address</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputText @bind-Value="profileData.Address" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.Address</p>
+                                    }
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label fw-medium text-muted small">Contact</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputText @bind-Value="profileData.Contact" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.Contact</p>
+                                    }
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-medium text-muted small">Blood Group</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputSelect @bind-Value="profileData.BloodGroup" class="form-select">
+                                            <option value="">Select</option>
+                                            <option value="A+">A+</option>
+                                            <option value="A-">A-</option>
+                                            <option value="B+">B+</option>
+                                            <option value="B-">B-</option>
+                                            <option value="O+">O+</option>
+                                            <option value="O-">O-</option>
+                                            <option value="AB+">AB+</option>
+                                            <option value="AB-">AB-</option>
+                                        </InputSelect>
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.BloodGroup</p>
+                                    }
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-medium text-muted small">Created At</label>
+                                    <p class="mb-0 text-muted">@profileData.Createdat?.ToString("yyyy-MM-dd HH:mm")</p>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-medium text-muted small">Preferences</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputText @bind-Value="profileData.Preferences" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.Preferences</p>
+                                    }
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label fw-medium text-muted small">Interests</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputText @bind-Value="profileData.Interests" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.Interests</p>
+                                    }
+                                </div>
+                            </div>
                         </div>
                     </div>
+                </Authorized>
+            </AuthorizeView>
+
+            <!-- STAFF SECTION -->
+            <AuthorizeView Policy="StaffOnly" Context="staffAuth">
+                <Authorized>
+                    <div class="card shadow-sm mb-4 border-0">
+                        <div class="card-header bg-transparent border-0 d-flex align-items-center">
+                            <h5 class="mb-0 fw-semibold text-info">
+                                <i class="bi bi-briefcase me-2"></i>Staff Details
+                            </h5>
+                            @if (staffAuth.User.IsInRole("Admin"))
+                            {
+                                <span class="badge bg-warning text-dark ms-2">Admin View</span>
+                            }
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-4">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-medium text-muted small">Contract Form</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputText @bind-Value="profileData.ContractForm" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.ContractForm</p>
+                                    }
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label fw-medium text-muted small">Department</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputText @bind-Value="profileData.Department" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.Department</p>
+                                    }
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label fw-medium text-muted small">Specialization</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputText @bind-Value="profileData.Specialization" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.Specialization</p>
+                                    }
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-medium text-muted small">Taxes (%)</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputNumber @bind-Value="profileData.Taxes" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.Taxes</p>
+                                    }
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-medium text-muted small">Hourly Rate</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputNumber @bind-Value="profileData.HourlyRate" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.HourlyRate</p>
+                                    }
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-medium text-muted small">Vacation Days</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputNumber @bind-Value="profileData.Vacationdays" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.Vacationdays</p>
+                                    }
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-medium text-muted small">Bank Details</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputText @bind-Value="profileData.Bankdetails" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0">@profileData.Bankdetails</p>
+                                    }
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label fw-medium text-muted small">Hired Date</label>
+                                    @if (isEditMode)
+                                    {
+                                        <InputDate @bind-Value="profileData.HiredDate" class="form-control" />
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0 text-muted">@profileData.HiredDate?.ToString("yyyy-MM-dd")</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+
+            <!-- ADMIN NOTICE -->
+            <AuthorizeView Policy="AdminOnly" Context="adminAuth">
+                <Authorized>
+                    <div class="alert alert-warning rounded-3 shadow-sm mb-4">
+                        You are viewing as <strong>Admin</strong>. You can see both Patient and Staff sections.
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+
+            <!-- SAVE / CANCEL -->
+            @if (isEditMode)
+            {
+                <div class="d-flex gap-3 justify-content-end mt-4">
+                    <button type="submit" class="btn btn-success btn-lg px-5">
+                        <i class="bi bi-check-lg me-2"></i>Save Changes
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-lg px-5" @onclick="CancelEdit">
+                        <i class="bi bi-x-lg me-2"></i>Cancel
+                    </button>
                 </div>
             }
-
-            @if (!string.IsNullOrEmpty(statusMessage))
-            {
-                <div class="alert alert-success mt-3">@statusMessage</div>
-            }
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="alert alert-danger mt-3">@errorMessage</div>
-            }
         </EditForm>
+
+        <!-- STATUS MESSAGES -->
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <div class="alert alert-success mt-4 rounded-3 shadow-sm" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i>@statusMessage
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger mt-4 rounded-3 shadow-sm" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMessage
+            </div>
+        }
     }
 </div>
 
-@code {
-    private ProfileData profileData = new();
-    private bool isEditMode = false;
-    private string userRole = "Patient";
-    private bool isLoading = true;
-    private string? statusMessage;
-    private string? errorMessage;
+<style>
+    .avatar-lg {
+        width: 70px;
+        height: 70px;
+        font-size: 1.8rem;
+    }
 
-    public class ProfileData
+    .card {
+        transition: transform .2s;
+    }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+</style>
+
+@code {
+    private class ProfileDataModel
     {
-        [Required, EmailAddress]
+        // ApplicationUser
+        public string UserId { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
-        [Phone]
         public string Phone { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
+        public string? PersonalNumber { get; set; }
+
+        // Patient
+        public DateTime? Dateofbirth { get; set; }
+        public string Address { get; set; } = string.Empty;
+        public string Contact { get; set; } = string.Empty;
         public string BloodGroup { get; set; } = string.Empty;
+        public DateTime? Createdat { get; set; }
+        public string Preferences { get; set; } = string.Empty;
+        public string Interests { get; set; } = string.Empty;
+
+        // Staff
+        public string ContractForm { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
+        public decimal Taxes { get; set; }
+        public string Bankdetails { get; set; } = string.Empty;
+        public int Vacationdays { get; set; }
+        public string Specialization { get; set; } = string.Empty;
+        public decimal HourlyRate { get; set; }
+        public DateTime? HiredDate { get; set; }
     }
+
+    private ProfileDataModel profileData = new();
+    private bool isEditMode = false;
+    private bool isLoading = true;
+    private string userRole = "Unknown";
+    private string? statusMessage;
+    private string? errorMessage;
+
+    private string GetInitials()
+    {
+        var first = string.IsNullOrEmpty(profileData.FirstName) ? "" : profileData.FirstName.Substring(0, 1);
+        var last = string.IsNullOrEmpty(profileData.LastName) ? "" : profileData.LastName.Substring(0, 1);
+        return (first + last).ToUpper();
+    }
+
+    private string GetFullName() => $"{profileData.FirstName} {profileData.LastName}".Trim();
 
     protected override async Task OnInitializedAsync()
     {
@@ -181,22 +465,43 @@
         try
         {
             var user = await AdminService.GetCurrentUserAsync();
-            if (user != null)
-            {
-                profileData.Email = user.Email ?? "";
-                profileData.FirstName = user.FirstName ?? "";
-                profileData.LastName = user.LastName ?? "";
-                profileData.Phone = user.PhoneNumber ?? "";
-
-                var roles = await AdminService.GetUserRolesAsync(user);
-                userRole = roles?.FirstOrDefault() ?? "Patient";
-
-                if (user.Patient != null)
-                    profileData.BloodGroup = user.Patient.BloodGroup ?? "";
-            }
-            else
+            if (user == null)
             {
                 errorMessage = "You must be logged in to view this page.";
+                return;
+            }
+
+            profileData.UserId = user.Id;
+            profileData.Email = user.Email ?? "";
+            profileData.Phone = user.PhoneNumber ?? "";
+            profileData.FirstName = user.FirstName ?? "";
+            profileData.LastName = user.LastName ?? "";
+            profileData.PersonalNumber = user.PersonalNumber;
+
+            var roles = await AdminService.GetUserRolesAsync(user);
+            userRole = roles?.FirstOrDefault() ?? "User";
+
+            if (user.Patient != null)
+            {
+                profileData.Dateofbirth = user.Patient.Dateofbirth;
+                profileData.Address = user.Patient.Address ?? "";
+                profileData.Contact = user.Patient.Contact ?? "";
+                profileData.BloodGroup = user.Patient.BloodGroup ?? "";
+                profileData.Createdat = user.Patient.Createdat;
+                profileData.Preferences = user.Patient.Preferences ?? "";
+                profileData.Interests = user.Patient.Interests ?? "";
+            }
+
+            if (user.Staff != null)
+            {
+                profileData.ContractForm = user.Staff.ContractForm ?? "";
+                profileData.Department = user.Staff.Department ?? "";
+                profileData.Taxes = user.Staff.Taxes;
+                profileData.Bankdetails = user.Staff.Bankdetails ?? "";
+                profileData.Vacationdays = user.Staff.Vacationdays;
+                profileData.Specialization = user.Staff.Specialization ?? "";
+                profileData.HourlyRate = user.Staff.HourlyRate;
+                profileData.HiredDate = user.Staff.HiredDate;
             }
         }
         catch (Exception ex)
@@ -210,7 +515,12 @@
     }
 
     private void EnableEditMode() => isEditMode = true;
-    private void CancelEdit() => isEditMode = false;
+
+    private void CancelEdit()
+    {
+        isEditMode = false;
+        _ = OnInitializedAsync();
+    }
 
     private async Task HandleSave()
     {
@@ -227,37 +537,94 @@
                 return;
             }
 
-            // Update base user info
+            // DEBUG: Log user load
+            Console.WriteLine($"[DEBUG] User loaded: ID={user.Id}, Email={user.Email}");
+            Console.WriteLine($"[DEBUG] Patient exists: {user.Patient != null}, Staff exists: {user.Staff != null}");
+
+            // === 1. Update ApplicationUser ===
             user.Email = profileData.Email;
+            user.PhoneNumber = profileData.Phone;
             user.FirstName = profileData.FirstName;
             user.LastName = profileData.LastName;
-            user.PhoneNumber = profileData.Phone;
+            user.PersonalNumber = profileData.PersonalNumber;
 
-            var updateUserSuccess = await AdminService.UpdateUserAsync(user);
-            if (!updateUserSuccess)
+            var userUpdated = await AdminService.UpdateUserAsync(user);
+            Console.WriteLine($"[DEBUG] UpdateUserAsync result: {userUpdated}");
+
+            if (!userUpdated)
             {
-                errorMessage = "Failed to update profile.";
+                errorMessage = "Failed to update user profile.";
                 return;
             }
 
+            // 2. Update Patient
             if (user.Patient != null)
             {
+                Console.WriteLine($"[DEBUG] Updating Patient ID: {user.Patient.Id}");
+
+                user.Patient.Dateofbirth = profileData.Dateofbirth ?? user.Patient.Dateofbirth;
+                user.Patient.Address = profileData.Address;
+                user.Patient.Contact = profileData.Contact;
                 user.Patient.BloodGroup = profileData.BloodGroup;
-                await AdminService.UpdatePatientAsync(user.Patient);
+                user.Patient.Preferences = profileData.Preferences;
+                user.Patient.Interests = profileData.Interests;
+
+                var patientUpdated = await AdminService.UpdatePatientAsync(user.Patient);
+                Console.WriteLine($"[DEBUG] UpdatePatientAsync result: {patientUpdated}");
+
+                if (!patientUpdated)
+                {
+                    errorMessage = "Failed to update patient details.";
+                    return;
+                }
+            }
+            else
+            {
+                Console.WriteLine("[DEBUG] No Patient attached — skipping.");
             }
 
-            statusMessage = "Profile updated successfully.";
+            // === 3. Update Staff ===
+            if (user.Staff != null)
+            {
+                Console.WriteLine($"[DEBUG] Updating Staff ID: {user.Staff.Id}");
+
+                user.Staff.ContractForm = profileData.ContractForm;
+                user.Staff.Department = profileData.Department;
+                user.Staff.Taxes = profileData.Taxes;
+                user.Staff.Bankdetails = profileData.Bankdetails;
+                user.Staff.Vacationdays = profileData.Vacationdays;
+                user.Staff.Specialization = profileData.Specialization;
+                user.Staff.HourlyRate = profileData.HourlyRate;
+                user.Staff.HiredDate = profileData.HiredDate ?? user.Staff.HiredDate;
+
+                var staffUpdated = await AdminService.UpdateStaffAsync(user.Staff);
+                Console.WriteLine($"[DEBUG] UpdateStaffAsync result: {staffUpdated}");
+
+                if (!staffUpdated)
+                {
+                    errorMessage = "Failed to update staff details.";
+                    return;
+                }
+            }
+            else
+            {
+                Console.WriteLine("[DEBUG] No Staff attached — skipping.");
+            }
+
+            statusMessage = "Profile updated successfully!";
             isEditMode = false;
+
+            // Refresh from DB
+            await OnInitializedAsync();
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error saving profile: {ex.Message}";
+            errorMessage = $"Save failed: {ex.Message}";
+            Console.WriteLine($"[ERROR] {ex}");
         }
         finally
         {
             isLoading = false;
         }
     }
-
-    private string GetFullName() => $"{profileData.FirstName} {profileData.LastName}".Trim();
 }
