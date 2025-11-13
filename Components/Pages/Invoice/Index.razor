@@ -1,0 +1,126 @@
+﻿﻿
+@page "/invoice"
+@using HMS.Models
+@using HMS.Services
+@inject AdminService AdminService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3>Invoice</h3>
+
+<main class="col-12 col-md-9 col-lg-10 py-4">
+    <header class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <div class="d-none d-sm-flex align-items-center gap-2">
+                <span class="profile-icon rounded-circle bg-secondary d-inline-block" style="width:36px;height:36px"></span>
+                <span class="profile-name">Admin Dashboard</span>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" @onclick="NavigateToCreateInvoice">
+            <i class="bi bi-plus-lg"></i> Create Invoice
+        </button>
+    </header>
+
+    <section class="content-area">
+        <!-- Recent Invoices Table -->
+        <section class="recent-invoice-section mb-5" aria-labelledby="recent-invoice-heading">
+            <div class="mb-3">
+                <h2 id="recent-invoice-heading" class="h5 mb-1">All Invoices</h2>
+                <p class="text-muted small mb-0">All invoices linked to patients and appointments.</p>
+            </div>
+
+            <div class="table-responsive shadow-sm bg-white rounded">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Invoice No.</th>
+                            <th>Patient</th>
+                            <th>Appointment ID</th>
+                            <th>Total Amount</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (invoices == null)
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center">Loading invoices...</td>
+                            </tr>
+                        }
+                        else if (!invoices.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center">No invoices found.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var invoice in invoices)
+                            {
+                                <tr>
+                                    <td>@invoice.Id</td>
+                                    <td>@invoice.InvoiceNumber</td>
+                                    <td>@(invoice.Appointment?.Patient?.User?.FirstName) @(invoice.Appointment?.Patient?.User?.LastName)</td>
+                                    <td>@invoice.AppointmentId</td>
+                                    <td>@invoice.TotalAmount.ToString("C")</td>
+                                    <td>@invoice.Status</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => PayInvoice(invoice.Id)">Pay</button>
+                                        <button class="btn btn-sm btn-outline-info me-1" @onclick="() => ViewInvoiceDetails(invoice.Id)">Details</button>
+                                        <button class="btn btn-sm btn-outline-warning me-1" @onclick="() => EditInvoice(invoice.Id)">Edit</button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteInvoice(invoice.Id)">Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </section>
+</main>
+
+@code {
+    private List<Invoice>? invoices;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            invoices = await AdminService.GetAllInvoicesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching invoices: {ex.Message}");
+            invoices = new List<Invoice>();
+        }
+    }
+
+    private void NavigateToCreateInvoice()
+    {
+        Navigation.NavigateTo("/invoice/create");
+    }
+
+    private void PayInvoice(int id)
+    {
+        Navigation.NavigateTo($"/invoice/transaction/{id}");
+    }
+
+    private void ViewInvoiceDetails(int id)
+    {
+        Navigation.NavigateTo($"/invoice/details/{id}");
+    }
+
+    private void EditInvoice(int id)
+    {
+        Navigation.NavigateTo($"/invoice/edit/{id}");
+    }
+
+    private async Task DeleteInvoice(int id)
+    {
+        Console.WriteLine($"Delete invoice {id}");
+    }
+}
