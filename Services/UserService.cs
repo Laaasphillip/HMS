@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 
-namespace YourAppNamespace.Services
+namespace HMS.Services
 {
     public class UserService
     {

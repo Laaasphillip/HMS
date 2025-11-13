@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Radzen;
-using YourAppNamespace.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +62,10 @@ builder.Services.AddAuthorizationCore(options =>
     // Admin or Patient policy
     options.AddPolicy("AdminOrPatient", policy =>
         policy.RequireRole("Admin", "Patient"));
+
+    // Patient-only policy
+    options.AddPolicy("PatientOnly", policy =>
+        policy.RequireRole("Patient"));
 
     // All authenticated users (Admin, Staff, Patient)
     options.AddPolicy("Authenticated", policy =>

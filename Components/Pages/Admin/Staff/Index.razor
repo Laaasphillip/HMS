@@ -1,4 +1,4 @@
-﻿@page "/admin/staff"
+﻿@page "/staff"
 @using HMS.Models
 @using HMS.Services
 @using Microsoft.JSInterop
@@ -39,9 +39,11 @@
                 <i class="bi bi-person-badge-fill me-2"></i>
                 Total Staff: <span class="badge bg-light" style="color: #5f4f96;">@staff.Count</span>
             </h5>
-            <button class="btn btn-light btn-sm fw-bold" style="color: #5f4f96;" @onclick='() => Navigation.NavigateTo("/admin/staff/create")'>
-                <i class="bi bi-plus-circle me-1"></i> Add Staff
-            </button>
+            <AuthorizeView Policy="AdminOnly">
+                <button class="btn btn-light btn-sm fw-bold" style="color: #5f4f96;" @onclick='() => Navigation.NavigateTo("/admin/staff/create")'>
+                    <i class="bi bi-plus-circle me-1"></i> Add Staff
+                </button>
+            </AuthorizeView>
         </div>
         <div class="card-body">
             @if (isLoading)
@@ -96,17 +98,19 @@
                                                     title="View Details">
                                                 <i class="bi bi-eye"></i>
                                             </button>
-                                            <button class="btn btn-outline-warning"
-                                                    @onclick="() => EditStaff(member.Id)"
-                                                    title="Edit">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button class="btn btn-outline-danger"
-                                                    @onclick="() => DeleteStaff(member.Id)"
-                                                    title="Delete"
-                                                    disabled="@isDeletingStaff">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
+                                            <AuthorizeView Policy="AdminOnly">
+                                                <button class="btn btn-outline-warning"
+                                                        @onclick="() => EditStaff(member.Id)"
+                                                        title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger"
+                                                        @onclick="() => DeleteStaff(member.Id)"
+                                                        title="Delete"
+                                                        disabled="@isDeletingStaff">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </AuthorizeView>
                                         </div>
                                     </td>
                                 </tr>
@@ -150,7 +154,7 @@
 
     private void ViewStaff(int staffId)
     {
-        Navigation.NavigateTo($"/admin/staff/view/{staffId}");
+        Navigation.NavigateTo($"/staff/view/{staffId}");
     }
 
     private void EditStaff(int staffId)

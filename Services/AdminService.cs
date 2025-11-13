@@ -104,6 +104,10 @@ namespace HMS.Services
                     var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                     return (false, $"Failed to create user account: {errors}", null);
                 }
+                else
+                {
+                    await _userManager.AddToRoleAsync(user, "Patient");
+                }
 
                 var patient = new Patient
                 {
@@ -236,7 +240,10 @@ namespace HMS.Services
                     var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                     return (false, $"Failed to create user account: {errors}", null);
                 }
-
+                else
+                {
+                    await _userManager.AddToRoleAsync(user, "Staff");
+                }
                 var staff = new Staff
                 {
                     UserId = user.Id,

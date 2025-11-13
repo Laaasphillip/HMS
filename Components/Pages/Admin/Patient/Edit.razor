@@ -8,7 +8,7 @@
 @inject AdminService AdminService
 @inject UserManager<ApplicationUser> UserManager
 @inject NavigationManager NavigationManager
-@attribute [Authorize(Policy = "AdminOnly")]
+@attribute [Authorize(Policy = "AdminOrStaff")]
 @rendermode InteractiveServer
 
 <div class="container mt-4">
@@ -246,7 +246,7 @@
 
             if (success)
             {
-                Navigation.NavigateTo("/admin/patients");
+                Navigation.NavigateTo("/patients");
             }
             else
             {
@@ -262,7 +262,7 @@
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/admin/patient");
+        Navigation.NavigateTo("/patients");
     }
 
     public class PatientEditModel

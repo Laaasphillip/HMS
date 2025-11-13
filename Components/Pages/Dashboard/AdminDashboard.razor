@@ -1,0 +1,406 @@
+﻿@page "/dashboard/admin"
+@using HMS.Services
+@using HMS.Models
+@using Microsoft.AspNetCore.Authorization
+@inject AdminService AdminService
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "AdminOrStaff")]
+
+<PageTitle>Admin Dashboard</PageTitle>
+
+<div class="container-fluid py-4">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-1">System Dashboard 📊</h2>
+            <p class="text-muted">Hospital Management System Overview</p>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    else
+    {
+        <!-- Statistics Grid -->
+        <div class="row g-3 mb-4">
+            <!-- Patients -->
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-people-fill text-primary" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Total Patients</h6>
+                                <h3 class="mb-0">@totalPatients</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0">
+                        <a href="/patients" class="btn btn-sm btn-outline-primary w-100">View All</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Staff -->
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-success bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-person-badge-fill text-success" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Total Staff</h6>
+                                <h3 class="mb-0">@totalStaff</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0">
+                        <a href="/staff" class="btn btn-sm btn-outline-success w-100">View All</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Appointments -->
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-info bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-calendar-check-fill text-info" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Appointments</h6>
+                                <h3 class="mb-0">@totalAppointments</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0">
+                        <a href="/appointments" class="btn btn-sm btn-outline-info w-100">View All</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenue -->
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-warning bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-cash-stack text-warning" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Total Revenue</h6>
+                                <h3 class="mb-0">@totalRevenue.ToString("C0")</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0">
+                        <a href="/transaction" class="btn btn-sm btn-outline-warning w-100">View Transactions</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invoices -->
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-danger bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-receipt text-danger" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Total Invoices</h6>
+                                <h3 class="mb-0">@totalInvoices</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0">
+                        <a href="/invoice" class="btn btn-sm btn-outline-danger w-100">View All</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Invoices -->
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-secondary bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-hourglass-split text-secondary" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Pending Invoices</h6>
+                                <h3 class="mb-0">@pendingInvoices</h3>
+                                <small class="text-muted">@pendingInvoicesAmount.ToString("C0")</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0">
+                        <a href="/invoice" class="btn btn-sm btn-outline-secondary w-100">View Pending</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedules -->
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-calendar3 text-primary" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Active Schedules</h6>
+                                <h3 class="mb-0">@totalSchedules</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0">
+                        <a href="/schedules" class="btn btn-sm btn-outline-primary w-100">View All</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Time Reports -->
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-success bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-clock-history text-success" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Time Reports</h6>
+                                <h3 class="mb-0">@totalTimeReports</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0">
+                        <a href="/admin/timereport/index" class="btn btn-sm btn-outline-success w-100">View All</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Management Sections -->
+        <div class="row g-4">
+            <!-- Patient & Appointment Management -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-primary text-white border-0 py-3">
+                        <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Patient & Appointment Management</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary text-start" @onclick='() => NavigationManager.NavigateTo("/patients")'>
+                                <i class="bi bi-people me-2"></i>Manage Patients
+                                <span class="badge bg-primary float-end">@totalPatients</span>
+                            </button>
+                            <button class="btn btn-outline-primary text-start" @onclick='() => NavigationManager.NavigateTo("/appointments")'>
+                                <i class="bi bi-calendar-check me-2"></i>Manage Appointments
+                                <span class="badge bg-primary float-end">@totalAppointments</span>
+                            </button>
+                            <button class="btn btn-outline-primary text-start" @onclick='() => NavigationManager.NavigateTo("/appointment-slots")'>
+                                <i class="bi bi-calendar-range me-2"></i>Appointment Slots
+                            </button>
+                            <button class="btn btn-outline-primary text-start" @onclick='() => NavigationManager.NavigateTo("/appointment-slot-configurations")'>
+                                <i class="bi bi-gear-fill me-2"></i>Slot Configurations
+                            </button>
+                            <button class="btn btn-outline-primary text-start" @onclick='() => NavigationManager.NavigateTo("/appointment-blocks")'>
+                                <i class="bi bi-calendar-x me-2"></i>Time Blocks
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Staff Management -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-success text-white border-0 py-3">
+                        <h5 class="mb-0"><i class="bi bi-person-badge-fill me-2"></i>Staff Management</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-success text-start" @onclick='() => NavigationManager.NavigateTo("/staff")'>
+                                <i class="bi bi-person-badge me-2"></i>Manage Staff
+                                <span class="badge bg-success float-end">@totalStaff</span>
+                            </button>
+                            <button class="btn btn-outline-success text-start" @onclick='() => NavigationManager.NavigateTo("/schedules")'>
+                                <i class="bi bi-calendar3 me-2"></i>Staff Schedules
+                                <span class="badge bg-success float-end">@totalSchedules</span>
+                            </button>
+                            <button class="btn btn-outline-success text-start" @onclick='() => NavigationManager.NavigateTo("/admin/timereport/index")'>
+                                <i class="bi bi-clock-history me-2"></i>Time Reports
+                                <span class="badge bg-success float-end">@totalTimeReports</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Financial Management -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-warning text-dark border-0 py-3">
+                        <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Financial Management</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-warning text-start" @onclick='() => NavigationManager.NavigateTo("/invoice")'>
+                                <i class="bi bi-receipt me-2"></i>Manage Invoices
+                                <span class="badge bg-warning float-end">@totalInvoices</span>
+                            </button>
+                            <button class="btn btn-outline-warning text-start" @onclick='() => NavigationManager.NavigateTo("/transaction")'>
+                                <i class="bi bi-credit-card me-2"></i>View Transactions
+                                <span class="badge bg-warning float-end">@totalRevenue.ToString("C0")</span>
+                            </button>
+                        </div>
+
+                        @if (pendingInvoices > 0)
+                        {
+                            <div class="alert alert-warning mt-3 mb-0">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                <strong>@pendingInvoices</strong> pending invoices worth <strong>@pendingInvoicesAmount.ToString("C")</strong>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-info text-white border-0 py-3">
+                        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Recent Patients -->
+                        @if (recentPatients.Any())
+                        {
+                            <h6 class="text-muted mb-3">Recent Patients</h6>
+                            <div class="list-group list-group-flush mb-3">
+                                @foreach (var patient in recentPatients.Take(3))
+                                {
+                                    <div class="list-group-item px-0 py-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-0 small">@patient.User?.FirstName @patient.User?.LastName</h6>
+                                                <small class="text-muted">@patient.Createdat.ToString("MMM dd, yyyy")</small>
+                                            </div>
+                                            <span class="badge bg-primary">Patient</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <!-- Recent Staff -->
+                        @if (recentStaff.Any())
+                        {
+                            <h6 class="text-muted mb-3">Recent Staff</h6>
+                            <div class="list-group list-group-flush">
+                                @foreach (var staff in recentStaff.Take(3))
+                                {
+                                    <div class="list-group-item px-0 py-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-0 small">@staff.User?.FirstName @staff.User?.LastName</h6>
+                                                <small class="text-muted">@staff.Department</small>
+                                            </div>
+                                            <span class="badge bg-success">@staff.ContractForm</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private int totalPatients = 0;
+    private int totalStaff = 0;
+    private int totalSchedules = 0;
+    private int totalAppointments = 0;
+    private int totalInvoices = 0;
+    private int totalTimeReports = 0;
+    private int pendingInvoices = 0;
+    private decimal totalRevenue = 0;
+    private decimal pendingInvoicesAmount = 0;
+
+    private List<Patient> recentPatients = new();
+    private List<Staff> recentStaff = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+
+            // Load all statistics
+            totalPatients = await AdminService.GetTotalPatientsCountAsync();
+            totalStaff = await AdminService.GetTotalStaffCountAsync();
+            totalSchedules = await AdminService.GetTotalSchedulesCountAsync();
+            totalAppointments = await AdminService.GetTotalAppointmentsCountAsync();
+            totalInvoices = await AdminService.GetTotalInvoicesCountAsync();
+            totalTimeReports = await AdminService.GetTotalTimeReportsCountAsync();
+            pendingInvoices = await AdminService.GetPendingInvoicesCountAsync();
+            totalRevenue = await AdminService.GetTotalTransactionAmountAsync();
+            pendingInvoicesAmount = await AdminService.GetPendingInvoicesAmountAsync();
+
+            // Load recent data
+            var allPatients = await AdminService.GetAllPatientsAsync();
+            recentPatients = allPatients.Take(3).ToList();
+
+            var allStaff = await AdminService.GetAllStaffAsync();
+            recentStaff = allStaff.Take(3).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load dashboard: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

@@ -1,4 +1,4 @@
-﻿@page "/admin/schedules"
+﻿@page "/schedules"
 @using HMS.Models
 @using HMS.Services
 @using Microsoft.AspNetCore.Authorization
@@ -6,6 +6,7 @@
 @using Radzen.Blazor
 @attribute [Authorize(Policy = "AdminOrStaff")]
 @inject AdminService AdminService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @rendermode InteractiveServer
 
@@ -18,10 +19,12 @@
             <p class="text-muted">Manage staff schedules and shifts</p>
         </div>
         <div class="col-auto">
-            <AuthorizeView Policy="AdminOrStaff">
-                <button class="btn btn-primary" @onclick="CreateSchedule">
-                    <i class="bi bi-plus-circle"></i> New Schedule
-                </button>
+            <AuthorizeView Policy="AdminOnly">
+                <div class="btn-group">
+                    <button class="btn btn-primary" @onclick="CreateSchedule">
+                        <i class="bi bi-plus-circle"></i> New Schedule
+                    </button>
+                </div>
             </AuthorizeView>
         </div>
     </div>
@@ -57,14 +60,14 @@
         <div class="card mb-3">
             <div class="card-body">
                 <div class="row align-items-center">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label class="form-label">View Type</label>
                         <select class="form-select" @bind="currentView" @bind:after="OnViewChanged">
                             <option value="Month">Month Calendar</option>
                             <option value="Timeline">Timeline View</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label class="form-label">Filter by Staff</label>
                         <select class="form-select" @bind="selectedStaffFilter" @bind:after="FilterSchedules">
                             <option value="0">All Staff</option>
@@ -74,7 +77,7 @@
                             }
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label class="form-label">Filter by Status</label>
                         <select class="form-select" @bind="selectedStatusFilter" @bind:after="FilterSchedules">
                             <option value="">All Statuses</option>
@@ -88,28 +91,22 @@
 
                 <!-- Statistics -->
                 <div class="row mt-3">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="text-center p-2 bg-primary bg-opacity-10 rounded">
                             <h6 class="mb-0">Total Schedules</h6>
                             <h4 class="mb-0">@filteredSchedules.Count</h4>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="text-center p-2 bg-success bg-opacity-10 rounded">
                             <h6 class="mb-0">Active</h6>
                             <h4 class="mb-0">@filteredSchedules.Count(s => s.Status == "Active")</h4>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="text-center p-2 bg-warning bg-opacity-10 rounded">
                             <h6 class="mb-0">Scheduled</h6>
                             <h4 class="mb-0">@filteredSchedules.Count(s => s.Status == "Scheduled")</h4>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="text-center p-2 bg-info bg-opacity-10 rounded">
-                            <h6 class="mb-0">Available</h6>
-                            <h4 class="mb-0">@filteredSchedules.Count(s => s.IsAvailable)</h4>
                         </div>
                     </div>
                 </div>
@@ -183,23 +180,21 @@
                                             var day = GetWeekStart().AddDays(i);
                                             var daySchedules = filteredSchedules
                                             .Where(s => s.StaffId == staff.Id &&
-                                            s.StartTime.Date == day.Date)
+                                            s.Date.Date == day.Date)
                                             .OrderBy(s => s.StartTime)
                                             .ToList();
                                             <td class="p-1" style="vertical-align: top;">
                                                 @foreach (var schedule in daySchedules)
                                                 {
-                                                    <div class="mb-1 p-2 rounded cursor-pointer @GetScheduleCardClass(schedule)"
-                                                         @onclick="() => EditSchedule(schedule.Id)"
-                                                         style="cursor: pointer; font-size: 0.85rem;">
-                                                        <div><strong>@schedule.StartTime.ToString("HH:mm") - @schedule.EndTime.ToString("HH:mm")</strong></div>
-                                                        <div><span class="badge bg-@GetShiftTypeColor(schedule.ShiftType)">@schedule.ShiftType</span></div>
-                                                        <div class="small">
-                                                            <span class="badge bg-@GetStatusColor(schedule.Status)">@schedule.Status</span>
-                                                            @if (schedule.IsAvailable)
-                                                            {
-                                                                <span class="badge bg-success">Available</span>
-                                                            }
+                                                    <div class="mb-1 p-2 rounded @GetScheduleCardClass(schedule)"
+                                                         style="font-size: 0.85rem;">
+                                                        <div style="cursor: pointer;" @onclick="() => EditSchedule(schedule.Id)">
+                                                            <div><strong>@schedule.StartTime.ToString(@"hh\:mm") - @schedule.EndTime.ToString(@"hh\:mm")</strong></div>
+                                                            <div><span class="badge bg-@GetShiftTypeColor(schedule.ShiftType)">@schedule.ShiftType</span></div>
+                                                            <div class="small">
+                                                                <span class="badge bg-@GetStatusColor(schedule.Status)">@schedule.Status</span>
+
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 }
@@ -231,6 +226,7 @@
     private DateTime currentDate = DateTime.Today;
     private int selectedStaffFilter = 0;
     private string selectedStatusFilter = "";
+    private string currentUserRole = "";
 
     private bool loading = true;
     private string? errorMessage;
@@ -238,6 +234,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadCurrentUserRole();
         await LoadData();
     }
 
@@ -261,6 +258,17 @@
         }
     }
 
+    private async Task LoadCurrentUserRole()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.IsInRole("Admin"))
+            currentUserRole = "Admin";
+        else if (user.IsInRole("Staff"))
+            currentUserRole = "Staff";
+    }
+
     private void FilterSchedules()
     {
         filteredSchedules = schedules.ToList();
@@ -279,13 +287,12 @@
         appointmentData = filteredSchedules.Select(s => new ScheduleAppointmentData
         {
             ScheduleId = s.Id,
-            Start = s.StartTime,
-            End = s.EndTime,
+            Start = s.Date.Add(s.StartTime),
+            End = s.Date.Add(s.EndTime),
             Text = $"{s.Staff?.User?.FirstName} {s.Staff?.User?.LastName} - {s.ShiftType}",
             StaffId = s.StaffId,
             ShiftType = s.ShiftType,
             Status = s.Status,
-            IsAvailable = s.IsAvailable
         }).ToList();
 
         StateHasChanged();
@@ -338,24 +345,33 @@
     {
         if (args.Data != null)
         {
-            EditSchedule(args.Data.ScheduleId);
+            ViewDetails(args.Data.ScheduleId);
         }
     }
 
     private void OnSlotSelect(SchedulerSlotSelectEventArgs args)
     {
-        // Navigate to create page with pre-selected date
-        NavigationManager.NavigateTo($"/admin/schedule/create?date={args.Start:yyyy-MM-dd}");
+        if (currentUserRole == "Admin")
+        {
+            // Navigate to create page with pre-selected date
+            NavigationManager.NavigateTo($"/schedule/create?date={args.Start:yyyy-MM-dd}");
+
+        }
     }
 
     private void CreateSchedule()
     {
-        NavigationManager.NavigateTo("/admin/schedule/create");
+        NavigationManager.NavigateTo("/schedule/create");
     }
 
     private void EditSchedule(int scheduleId)
     {
-        NavigationManager.NavigateTo($"/admin/schedule/edit/{scheduleId}");
+        NavigationManager.NavigateTo($"/schedule/edit/{scheduleId}");
+    }
+
+    private void ViewDetails(int scheduleId)
+    {
+        Navigation.NavigateTo($"/schedule/details/{scheduleId}");
     }
 
     private string GetScheduleCardClass(HMS.Models.Schedule schedule)
@@ -390,6 +406,7 @@
         _ => "secondary"
     };
 
+
     // Data model for Radzen Scheduler
     public class ScheduleAppointmentData
     {
@@ -400,6 +417,5 @@
         public int StaffId { get; set; }
         public string ShiftType { get; set; } = "";
         public string Status { get; set; } = "";
-        public bool IsAvailable { get; set; }
     }
 }

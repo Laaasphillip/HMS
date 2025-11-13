@@ -1,4 +1,4 @@
-﻿@page "/admin/patients"
+﻿@page "/patients"
 @using HMS.Models
 @using HMS.Services
 @using Microsoft.JSInterop
@@ -39,9 +39,11 @@
                 <i class="bi bi-heart-pulse-fill me-2"></i>
                 Total Patients: <span class="badge bg-light text-primary">@patients.Count</span>
             </h5>
-            <button class="btn btn-light btn-sm" @onclick='() => Navigation.NavigateTo("/admin/patient/create")'>
-                <i class="bi bi-plus-circle me-1"></i> Add Patient
-            </button>
+            <AuthorizeView Policy="AdminOrStaff">
+                <button class="btn btn-light btn-sm" @onclick='() => Navigation.NavigateTo("/admin/patient/create")'>
+                    <i class="bi bi-plus-circle me-1"></i> Add Patient
+                </button>
+            </AuthorizeView>
         </div>
         <div class="card-body">
             @if (isLoading)
@@ -96,17 +98,19 @@
                                                     title="View Details">
                                                 <i class="bi bi-eye"></i>
                                             </button>
-                                            <button class="btn btn-outline-warning"
-                                                    @onclick="() => EditPatient(patient.Id)"
-                                                    title="Edit">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button class="btn btn-outline-danger"
-                                                    @onclick="() => DeletePatient(patient.Id)"
-                                                    title="Delete"
-                                                    disabled="@isDeletingPatient">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
+                                            <AuthorizeView Policy="AdminOrStaff">
+                                                <button class="btn btn-outline-warning"
+                                                        @onclick="() => EditPatient(patient.Id)"
+                                                        title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger"
+                                                        @onclick="() => DeletePatient(patient.Id)"
+                                                        title="Delete"
+                                                        disabled="@isDeletingPatient">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </AuthorizeView>
                                         </div>
                                     </td>
                                 </tr>
@@ -150,7 +154,7 @@
 
     private void ViewPatient(int patientId)
     {
-        Navigation.NavigateTo($"/admin/patient/view/{patientId}");
+        Navigation.NavigateTo($"/patient/view/{patientId}");
     }
 
     private void EditPatient(int patientId)

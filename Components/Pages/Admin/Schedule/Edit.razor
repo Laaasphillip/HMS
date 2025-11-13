@@ -1,4 +1,4 @@
-﻿@page "/admin/schedule/edit/{ScheduleId:int}"
+﻿@page "/schedule/edit/{ScheduleId:int}"
 @using HMS.Data
 @using HMS.Models
 @using HMS.Services
@@ -60,7 +60,7 @@
                                         <option value="0">Select Staff</option>
                                         @foreach (var staff in staffList)
                                         {
-                                            <option value="@staff.Id">@staff.FullName (@staff.Role)</option>
+                                            <option value="@staff.Id">@staff.FullName (@staff.Department)</option>
                                         }
                                     </InputSelect>
                                     <ValidationMessage For="@(() => schedule.StaffId)" />
@@ -129,23 +129,12 @@
                                     <label class="form-label">Status *</label>
                                     <InputSelect @bind-Value="schedule.Status" class="form-select">
                                         <option value="">Select Status</option>
-                                            <option value="Scheduled">Scheduled</option>
-                                            <option value="Active">Active</option>
-                                            <option value="Completed">Completed</option>
-                                            <option value="Cancelled">Cancelled</option>
+                                        <option value="Scheduled">Scheduled</option>
+                                        <option value="Active">Active</option>
+                                        <option value="Completed">Completed</option>
+                                        <option value="Cancelled">Cancelled</option>
                                     </InputSelect>
                                     <ValidationMessage For="@(() => schedule.Status)" />
-                                </div>
-
-                                <!-- Is Available -->
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Availability</label>
-                                    <div class="form-check mt-2">
-                                        <InputCheckbox @bind-Value="schedule.IsAvailable" class="form-check-input" id="isAvailable" />
-                                        <label class="form-check-label" for="isAvailable">
-                                            Mark as available for appointments
-                                        </label>
-                                    </div>
                                 </div>
 
                                 <!-- Duration (Calculated, Read-only) -->
@@ -189,7 +178,7 @@
     {
         public int Id { get; set; }
         public string FullName { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
     }
 
     private ScheduleEditModel schedule = new();
@@ -211,7 +200,8 @@
             staffList = staffMembers.Select(s => new StaffSummary
             {
                 Id = s.Id,
-                FullName = s.User != null ? $"{s.User.FirstName} {s.User.LastName}".Trim() : "N/A"
+                FullName = s.User != null ? $"{s.User.FirstName} {s.User.LastName}".Trim() : "N/A",
+                Department = s.Department ?? "N/A"
             }).ToList();
         }
         catch (Exception ex)
@@ -242,14 +232,13 @@
             {
                 Id = dbSchedule.Id,
                 StaffId = dbSchedule.StaffId,
-                ScheduleDate = dbSchedule.StartTime.Date,
-                StartTime = dbSchedule.StartTime.TimeOfDay,
-                EndTime = dbSchedule.EndTime.TimeOfDay,
-                BreakStartTime = dbSchedule.BreakStart.TimeOfDay,
-                BreakEndTime = dbSchedule.BreakEnd.TimeOfDay,
+                ScheduleDate = dbSchedule.Date,
+                StartTime = dbSchedule.StartTime,
+                EndTime = dbSchedule.EndTime,
+                BreakStartTime = dbSchedule.BreakStart,
+                BreakEndTime = dbSchedule.BreakEnd,
                 ShiftType = dbSchedule.ShiftType ?? "",
-                Status = dbSchedule.Status ?? "Available",
-                IsAvailable = dbSchedule.IsAvailable,
+                Status = dbSchedule.Status ?? "Scheduled",
                 CreatedAt = dbSchedule.CreatedAt
             };
         }
@@ -270,7 +259,6 @@
 
         if (string.IsNullOrEmpty(timeString))
         {
-            // Set default time or leave as current value
             return;
         }
 
@@ -310,19 +298,19 @@
 
             // Update schedule properties
             dbSchedule.StaffId = schedule.StaffId;
-            dbSchedule.StartTime = schedule.ScheduleDate.Add(schedule.StartTime);
-            dbSchedule.EndTime = schedule.ScheduleDate.Add(schedule.EndTime);
-            dbSchedule.BreakStart = schedule.ScheduleDate.Add(schedule.BreakStartTime);
-            dbSchedule.BreakEnd = schedule.ScheduleDate.Add(schedule.BreakEndTime);
+            dbSchedule.Date = schedule.ScheduleDate;
+            dbSchedule.StartTime = schedule.StartTime;
+            dbSchedule.EndTime = schedule.EndTime;
+            dbSchedule.BreakStart = schedule.BreakStartTime;
+            dbSchedule.BreakEnd = schedule.BreakEndTime;
             dbSchedule.ShiftType = schedule.ShiftType;
             dbSchedule.Status = schedule.Status;
-            dbSchedule.IsAvailable = schedule.IsAvailable;
 
             var success = await AdminService.UpdateScheduleAsync(dbSchedule);
 
             if (success)
             {
-                Navigation.NavigateTo("/admin/schedules");
+                NavigationManager.NavigateTo("/schedules");
             }
             else
             {
@@ -341,19 +329,19 @@
         if (TimeSpan.TryParse(schedule.StartTimeString, out var startTime) &&
             TimeSpan.TryParse(schedule.EndTimeString, out var endTime))
         {
-            return (endTime - startTime).TotalHours;
+            return Math.Round((endTime - startTime).TotalHours, 2);
         }
         return 0;
     }
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/admin/schedules");
+        NavigationManager.NavigateTo("/schedules");
     }
 
     private void ViewDetails()
     {
-        Navigation.NavigateTo($"/admin/schedule/details/{ScheduleId}");
+        NavigationManager.NavigateTo($"/schedule/details/{ScheduleId}");
     }
 
     public class ScheduleEditModel
@@ -377,17 +365,15 @@
         public string EndTimeString { get; set; } = "17:00";
 
         [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Please enter a valid time in HH:mm format")]
-        public string BreakStartTimeString { get; set; } = "12:00";
+        public string? BreakStartTimeString { get; set; } = "12:00";
 
         [RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Please enter a valid time in HH:mm format")]
-        public string BreakEndTimeString { get; set; } = "13:00";
+        public string? BreakEndTimeString { get; set; } = "13:00";
 
         public string ShiftType { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Status is required")]
-        public string Status { get; set; } = "Available";
-
-        public bool IsAvailable { get; set; } = true;
+        public string Status { get; set; } = "Scheduled";
 
         public DateTime CreatedAt { get; set; }
 
@@ -404,16 +390,16 @@
             set => EndTimeString = value.ToString(@"hh\:mm");
         }
 
-        public TimeSpan BreakStartTime
+        public TimeSpan? BreakStartTime
         {
-            get => TimeSpan.TryParse(BreakStartTimeString, out var time) ? time : TimeSpan.FromHours(12);
-            set => BreakStartTimeString = value.ToString(@"hh\:mm");
+            get => !string.IsNullOrEmpty(BreakStartTimeString) && TimeSpan.TryParse(BreakStartTimeString, out var time) ? time : null;
+            set => BreakStartTimeString = value?.ToString(@"hh\:mm");
         }
 
-        public TimeSpan BreakEndTime
+        public TimeSpan? BreakEndTime
         {
-            get => TimeSpan.TryParse(BreakEndTimeString, out var time) ? time : TimeSpan.FromHours(13);
-            set => BreakEndTimeString = value.ToString(@"hh\:mm");
+            get => !string.IsNullOrEmpty(BreakEndTimeString) && TimeSpan.TryParse(BreakEndTimeString, out var time) ? time : null;
+            set => BreakEndTimeString = value?.ToString(@"hh\:mm");
         }
     }
 }

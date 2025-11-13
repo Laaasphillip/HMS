@@ -17,23 +17,46 @@
                 <i class="bi bi-house-door-fill me-2" aria-hidden="true"></i> Home
             </NavLink>
         </div>
-
-        <AuthorizeView Policy="AdminOrStaff">
+           
+        <AuthorizeView Policy="Authenticated">
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="dashboard">
                     <i class="bi bi-speedometer2 me-2" aria-hidden="true"></i> Dashboard
                 </NavLink>
             </div>
-
-            <!-- Patient & Appointment Management -->
             <div class="nav-item px-3">
-                <NavLink class="nav-link" href="admin/patients">
-                    <i class="bi bi-people-fill me-2" aria-hidden="true"></i> Patients
+                <NavLink class="nav-link" href="book-appointment">
+                    <i class="bi bi-calendar-plus-fill me-2" aria-hidden="true"></i> Book Appointment
                 </NavLink>
             </div>
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="appointments">
                     <i class="bi bi-calendar-check me-2" aria-hidden="true"></i> Appointments
+                </NavLink>
+            </div>
+        </AuthorizeView>
+        <AuthorizeView Policy="AdminOrStaff">
+            
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/appointment-slot-configurations">
+                    <i class="bi bi-gear-fill me-2" aria-hidden="true"></i> Slot Configurations
+                </NavLink>
+            </div>
+            
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/appointment-slots">
+                    <i class="bi bi-calendar-range me-2"></i>Appointment Slots
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/appointment-blocks">
+                    <i class="bi bi-calendar-x me-2" aria-hidden="true"></i> Time Blocks
+                </NavLink>
+            </div>
+            <!-- Patient & Appointment Management -->
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/patients">
+                    <i class="bi bi-people-fill me-2" aria-hidden="true"></i> Patients
                 </NavLink>
             </div>
 
@@ -43,21 +66,19 @@
                 </NavLink>
             </div>
             <div class="nav-item px-3">
-                <NavLink class="nav-link" href="admin/transaction">
+                <NavLink class="nav-link" href="/transaction">
                     <i class="bi bi-credit-card me-2" aria-hidden="true"></i> Transactions
                 </NavLink>
             </div>
-        </AuthorizeView>
 
-        <AuthorizeView Policy="AdminOnly">
             <!-- Staff Management -->
             <div class="nav-item px-3">
-                <NavLink class="nav-link" href="admin/staff">
+                <NavLink class="nav-link" href="/staff">
                     <i class="bi bi-person-badge-fill me-2" aria-hidden="true"></i> Staff
                 </NavLink>
             </div>
             <div class="nav-item px-3">
-                <NavLink class="nav-link" href="admin/schedules">
+                <NavLink class="nav-link" href="/schedules">
                     <i class="bi bi-calendar3 me-2" aria-hidden="true"></i> Schedules
                 </NavLink>
             </div>
