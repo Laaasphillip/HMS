@@ -447,7 +447,7 @@ namespace HMS.Services
 
             try
             {
-                // Step 1: Update Identity fields (Email, Phone, etc.)
+                //Update Identity fields
                 var identityResult = await _userManager.UpdateAsync(user);
                 if (!identityResult.Succeeded)
                 {
@@ -455,7 +455,7 @@ namespace HMS.Services
                     return false;
                 }
 
-                // Step 2: Save custom fields in ApplicationUser (FirstName, LastName, etc.)
+                //Save custom fields in ApplicationUser
                 _context.Users.Update(user);
                 var rowsAffected = await _context.SaveChangesAsync();
 
@@ -469,5 +469,70 @@ namespace HMS.Services
         }
         #endregion
 
+        #region Invoice Management
+
+        public async Task<List<Appointment>> GetAllAppointmentsAsync()
+        {
+            return await _context.Appointments
+                .Include(a => a.Patient)
+                    .ThenInclude(p => p.User)
+                .ToListAsync();
+        }
+
+        public async Task<List<Invoice>> GetAllInvoicesAsync()
+        {
+            return await _context.Invoices
+                .Include(i => i.Appointment)
+                    .ThenInclude(a => a.Patient)
+                .Include(i => i.Appointment)
+                    .ThenInclude(a => a.Staff)
+                .ToListAsync();
+        }
+
+        public async Task<Invoice?> GetInvoiceByIdAsync(int id)
+        {
+            return await _context.Invoices
+                .Include(i => i.Appointment)
+                    .ThenInclude(a => a.Patient)
+                .Include(i => i.Appointment)
+                    .ThenInclude(a => a.Staff)
+                .FirstOrDefaultAsync(i => i.Id == id);
+        }
+
+        public async Task<Invoice> CreateInvoiceAsync(Invoice invoice)
+        {
+            var appointment = await _context.Appointments
+                .FirstOrDefaultAsync(a => a.Id == invoice.AppointmentId);
+
+            if (appointment == null)
+                throw new Exception("Appointment not found for this invoice.");
+
+            _context.Invoices.Add(invoice);
+            await _context.SaveChangesAsync();
+
+            appointment.Invoice = invoice;
+            _context.Appointments.Update(appointment);
+            await _context.SaveChangesAsync();
+
+            return invoice;
+        }
+
+        public async Task UpdateInvoiceAsync(Invoice invoice)
+        {
+            _context.Invoices.Update(invoice);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteInvoiceAsync(int id)
+        {
+            var invoice = await _context.Invoices.FindAsync(id);
+            if (invoice != null)
+            {
+                _context.Invoices.Remove(invoice);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        #endregion
     }
 }

@@ -1,7 +1,162 @@
 ﻿@page "/invoice/create"
+@using HMS.Models
+@using HMS.Services
+@inject AdminService AdminService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
 
-<h3>Create</h3>
+<h3>Create Invoice</h3>
+
+<main class="col-12 col-md-9 col-lg-10 py-4">
+    <section class="content-area">
+        <EditForm Model="@newInvoice" OnValidSubmit="CreateInvoiceAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="card p-4 shadow-sm rounded">
+                <div class="row g-3">
+
+                    <!-- PATIENT DROPDOWN -->
+                    <div class="col-md-6">
+                        <label class="form-label">Patient</label>
+                        <!--  FIXED: Only @bind used (no duplicate @onchange) -->
+                        <select class="form-select" @onchange="OnPatientChanged">
+                            <option value="">Select Patient</option>
+                            @foreach (var patient in patients)
+                            {
+                                <option value="@patient.Id">@patient.User?.FirstName @patient.User?.LastName</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- APPOINTMENT DROPDOWN -->
+                    <div class="col-md-6">
+                        <label class="form-label">Appointment</label>
+                        <select class="form-select" @bind="newInvoice.AppointmentId">
+                            <option value="">Select Appointment</option>
+                            @foreach (var appt in filteredAppointments)
+                            {
+                                <option value="@appt.Id">
+                                    @appt.AppointmentDate.ToShortDateString() - @appt.Reason
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- SUBTOTAL / TAX / TOTAL -->
+                    <div class="col-md-4">
+                        <label class="form-label">Subtotal</label>
+                        <input type="number" step="0.01" class="form-control"
+                               @bind="newInvoice.SubTotal"
+                               @oninput="CalculateTotals" />
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Tax (%)</label>
+                        <input type="number" step="0.01" class="form-control"
+                               @bind="taxPercent"
+                               @oninput="CalculateTotals" />
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Total</label>
+                        <input type="number" step="0.01" class="form-control"
+                               value="@newInvoice.TotalAmount" readonly />
+                    </div>
+
+                    <!-- STATUS + DUE DATE -->
+                    <div class="col-md-6">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" @bind="newInvoice.Status">
+                            <option value="Unpaid">Unpaid</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Pending">Pending</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Due Date</label>
+                        <input type="date" class="form-control" @bind="newInvoice.DueDate" />
+                    </div>
+
+                    <!-- BUTTONS -->
+                    <div class="col-12 text-end mt-3">
+                        <button type="submit" class="btn btn-success">Create Invoice</button>
+                        <button type="button" class="btn btn-secondary ms-2"
+                                @onclick="@(() => Navigation.NavigateTo("/invoice"))">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+    </section>
+</main>
 
 @code {
+    private Invoice newInvoice = new();
+    private List<Patient> patients = new();
+    private List<Appointment> appointments = new();
+    private List<Appointment> filteredAppointments = new();
+    private decimal taxPercent = 10;
 
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            patients = await AdminService.GetAllPatientsAsync();
+            appointments = await AdminService.GetAllAppointmentsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading data: {ex.Message}");
+        }
+    }
+
+    private void OnPatientChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int patientId))
+        {
+            newInvoice.PatientId = patientId;
+            filteredAppointments = appointments
+                .Where(a => a.PatientId == patientId)
+                .ToList();
+        }
+        else
+        {
+            filteredAppointments.Clear();
+        }
+    }
+
+    private void CalculateTotals(ChangeEventArgs? e = null)
+    {
+        newInvoice.TaxAmount = newInvoice.SubTotal * (taxPercent / 100);
+        newInvoice.TotalAmount = newInvoice.SubTotal + newInvoice.TaxAmount;
+    }
+
+    private async Task CreateInvoiceAsync()
+    {
+        try
+        {
+            newInvoice.TaxAmount = newInvoice.SubTotal * (taxPercent / 100);
+            newInvoice.TotalAmount = newInvoice.SubTotal + newInvoice.TaxAmount;
+            newInvoice.InvoiceNumber = $"INV-{DateTime.Now.Ticks}";
+            newInvoice.CreatedAt = DateTime.Now;
+
+            var createdInvoice = await AdminService.CreateInvoiceAsync(newInvoice);
+
+            if (createdInvoice != null)
+            {
+                Navigation.NavigateTo("/invoice");
+            }
+            else
+            {
+                Console.WriteLine("Failed to create invoice.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating invoice: {ex.Message}");
+        }
+    }
 }
