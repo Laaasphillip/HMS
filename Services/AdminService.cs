@@ -99,6 +99,46 @@ namespace HMS.Services
                 return (false, $"Error deleting time report: {ex.Message}");
             }
         }
+        public async Task<(bool Success, string Message, TimeReport? TimeReport)> CreateTimeReportAsync(
+             int staffId,
+             int? scheduleId,
+             DateTime clockIn,
+             DateTime? clockOut,
+             string activityType,
+             string notes ="")
+        {
+            try 
+            {
+                // Check authorization - Admin or Staff can create time reports
+                await EnsureAuthorizedAsync("AdminOrStaff", "create time report");
+
+                // Validate that the staff member exists
+                var staffExists = await _context.Staff.AnyAsync(s => s.Id == staffId);
+                if (!staffExists)
+                    return (false, "Staff member not found", null);
+
+                // Validate schedule if provided
+                if (scheduleId.HasValue)
+                {
+                    var scheduleExists = await _context.Schedules.AnyAsync(s => s.Id == scheduleId.Value);
+                    if (!scheduleExists)
+                        return (false, "Schedule not found", null);
+                }
+                // Calculations hours worked
+                decimal hoursWorked = 0;
+                if (clockOut.HasValue)
+                {
+                    var duration = clockOut.Value - clockIn;
+                    hoursWorked = (decimal)duration.TotalHours;
+                }
+
+
+            }
+
+
+
+        {
+
 
 
         #region Patient Management
