@@ -1,274 +1,35 @@
 ﻿@page "/dashboard"
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "Authenticated")]
 
-<h3>Dashboard</h3>
+<PageTitle>Dashboard</PageTitle>
 
-<!-- Main content -->
-<main class="col-12 col-md-9 col-lg-10 py-3">
-    <!-- Top header (mobile shows menu button) -->
-    <header class="d-flex align-items-center justify-content-between mb-4">
-        <div class="d-flex align-items-center gap-3">
-            <button class="btn btn-outline-secondary d-md-none" data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar" aria-label="Open menu">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="user-info d-flex align-items-center gap-2">
-                <span class="user-icon rounded-circle bg-secondary d-inline-block" style="width:36px;height:36px"></span>
-                <strong class="d-none d-sm-inline">INSERT USER NAME</strong>
-            </div>
-        </div>
-    </header>
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
 
-    <!-- Stats -->
-    <section class="stats-section mb-4">
-        <div class="row g-3">
-            <div class="col-6 col-md-3">
-                <div class="card h-100">
-                    <div class="card-body d-flex gap-3 align-items-center">
-                        <div class="stat-icon stat-icon-patient fs-3 text-primary" aria-hidden="true"></div>
-                        <div>
-                            <h6 class="card-title mb-1">Total Patient</h6>
-                            <p class="h5 mb-0">20</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-3">
-                <div class="card h-100">
-                    <div class="card-body d-flex gap-3 align-items-center">
-                        <div class="stat-icon stat-icon-doctors fs-3 text-primary" aria-hidden="true"></div>
-                        <div>
-                            <h6 class="card-title mb-1">Total Doctors</h6>
-                            <p class="h5 mb-0">20</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-3">
-                <div class="card h-100">
-                    <div class="card-body d-flex gap-3 align-items-center">
-                        <div class="stat-icon stat-icon-wards fs-3 text-primary" aria-hidden="true"></div>
-                        <div>
-                            <h6 class="card-title mb-1">Total Wards</h6>
-                            <p class="h5 mb-0">20</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-3">
-                <div class="card h-100">
-                    <div class="card-body d-flex gap-3 align-items-center">
-                        <div class="stat-icon stat-icon-labs fs-3 text-primary" aria-hidden="true"></div>
-                        <div>
-                            <h6 class="card-title mb-1">Total Labs</h6>
-                            <p class="h5 mb-0">20</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <div class="row g-4">
-        <!-- Chart section -->
-        <section class="col-lg-7">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Patients</h5>
-                    <div class="btn-group">
-                        <button class="btn btn-sm btn-outline-secondary">7 days</button>
-                    </div>
-                </div>
-
-                <div class="card-body">
-                    <div class="mb-2 text-muted small">14.10.2021 - 20.10.2021</div>
-
-                    <div class="chart-wrapper mb-3">
-                        <!-- preserve SVG -->
-                        <div class="ratio ratio-16x9">
-                            <svg class="chart-svg" viewBox="0 0 500 250" preserveAspectRatio="none" aria-label="Patient statistics chart" xmlns="http://www.w3.org/2000/svg">
-                                <defs>
-                                    <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                        <stop offset="0%" style="stop-color: #4a90e2; stop-opacity: 0.3" />
-                                        <stop offset="100%" style="stop-color: #4a90e2; stop-opacity: 0" />
-                                    </linearGradient>
-                                </defs>
-                                <polyline points="0,200 70,200 140,200 210,200 280,200 350,200 420,200 500,200" fill="none" stroke="#E0E0E0" stroke-width="2" stroke-dasharray="5,5" />
-                                <polyline points="0,180 35,80 70,50 105,120 140,90 175,180 210,150 245,100 280,80 315,130 350,110 385,160 420,140 455,170 500,150" fill="url(#chartGradient)" stroke="#4A90E2" stroke-width="3" />
-                                <circle cx="70" cy="50" r="6" fill="#2E5C8A" stroke="#fff" stroke-width="2" />
-                                <rect x="55" y="35" width="40" height="20" rx="3" fill="#2E5C8A" />
-                                <text x="75" y="49" text-anchor="middle" fill="#fff" font-size="12">2,212</text>
-                            </svg>
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <small class="text-muted">All time</small>
-                            <div class="fw-semibold">41 234</div>
-                        </div>
-                        <div>
-                            <small class="text-muted">30 days</small>
-                            <div class="fw-semibold">41 234</div>
-                        </div>
-                        <div>
-                            <small class="text-muted">7 days</small>
-                            <div class="fw-semibold">41 234</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Appointments -->
-        <section class="col-lg-5">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Appointments</h5>
-                    <div>
-                        <button class="btn btn-sm btn-outline-danger me-2">Reject</button>
-                        <button class="btn btn-sm btn-outline-success">Accept</button>
-                    </div>
-                </div>
-
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>First Name Last Name</th>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Chance Vaccaro</td>
-                                    <td>10.01.2003 12:54</td>
-                                    <td><span class="badge bg-warning text-dark">Pending</span></td>
-                                </tr>
-                                <tr>
-                                    <td>Desirae Kenter</td>
-                                    <td>04.12.2003 03:21</td>
-                                    <td><span class="badge bg-danger">Rejected</span></td>
-                                </tr>
-                                <tr>
-                                    <td>Paityn Lubin</td>
-                                    <td>10.01.2003 12:54</td>
-                                    <td><span class="badge bg-warning text-dark">Pending</span></td>
-                                </tr>
-                                <tr>
-                                    <td>Phillip Bator</td>
-                                    <td>04.12.2003 03:21</td>
-                                    <td><span class="badge bg-warning text-dark">Pending</span></td>
-                                </tr>
-                                <tr>
-                                    <td>Emerson Stanton</td>
-                                    <td>10.01.2003 12:54</td>
-                                    <td><span class="badge bg-success">Accept</span></td>
-                                </tr>
-                                <tr>
-                                    <td>Alfredo Rhiel Madsen</td>
-                                    <td>03.08.2019 12:54</td>
-                                    <td><span class="badge bg-danger">Rejected</span></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="card-footer">
-                        <nav aria-label="Appointments pagination">
-                            <ul class="pagination mb-0 justify-content-center">
-                                <li class="page-item"><a class="page-link" href="#">Prev</a></li>
-                                <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                                <li class="page-item"><a class="page-link" href="#">2</a></li>
-                                <li class="page-item"><a class="page-link" href="#">3</a></li>
-                                <li class="page-item disabled"><span class="page-link">...</span></li>
-                                <li class="page-item"><a class="page-link" href="#">13</a></li>
-                                <li class="page-item"><a class="page-link" href="#">Next</a></li>
-                            </ul>
-                        </nav>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </div>
-
-    <!-- Recent Doctors and Stock -->
-    <div class="row g-4 mt-1">
-        <section class="col-lg-8">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Recent Doctors</h5>
-                    <small class="text-muted">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</small>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Name</th>
-                                    <th>Mobile</th>
-                                    <th>Address</th>
-                                    <th>Consultancy Charge</th>
-                                    <th>Education</th>
-                                    <th>DOB</th>
-                                    <th>Status</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>1</td>
-                                    <td>Sam</td>
-                                    <td>0785553321</td>
-                                    <td>Kalutara</td>
-                                    <td>2500.00</td>
-                                    <td>MBBS</td>
-                                    <td>1954-04-13</td>
-                                    <td><span class="badge bg-success">Online</span></td>
-                                    <td><button class="btn btn-sm btn-outline-danger" aria-label="Delete doctor">Delete</button></td>
-                                </tr>
-                                <tr>
-                                    <td>2</td>
-                                    <td>John</td>
-                                    <td>0724725839</td>
-                                    <td>Kandy</td>
-                                    <td>2500.00</td>
-                                    <td>Phd</td>
-                                    <td>1978-05-13</td>
-                                    <td><span class="badge bg-secondary">Offline</span></td>
-                                    <td><button class="btn btn-sm btn-outline-danger" aria-label="Delete doctor">Delete</button></td>
-                                </tr>
-                                <tr>
-                                    <td>3</td>
-                                    <td>David</td>
-                                    <td>0764924839</td>
-                                    <td>Galle</td>
-                                    <td>2500.00</td>
-                                    <td>MBBS</td>
-                                    <td>1987-04-18</td>
-                                    <td><span class="badge bg-secondary">Offline</span></td>
-                                    <td><button class="btn btn-sm btn-outline-danger" aria-label="Delete doctor">Delete</button></td>
-                                </tr>
-                                <tr>
-                                    <td>4</td>
-                                    <td>Christiano</td>
-                                    <td>0764767839</td>
-                                    <td>Matara</td>
-                                    <td>2500.00</td>
-                                    <td>MBBS</td>
-                                    <td>1969-06-13</td>
-                                    <td><span class="badge bg-secondary">Offline</span></td>
-                                    <td><button class="btn btn-sm btn-outline-danger" aria-label="Delete doctor">Delete</button></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </section
-    </div>
-</main>
+        // Redirect based on role
+        if (user.IsInRole("Admin"))
+        {
+            NavigationManager.NavigateTo("/dashboard/admin", replace: true);
+        }
+        else if (user.IsInRole("Staff"))
+        {
+            NavigationManager.NavigateTo("/dashboard/staff", replace: true);
+        }
+        else if (user.IsInRole("Patient"))
+        {
+            NavigationManager.NavigateTo("/dashboard/patient", replace: true);
+        }
+        else
+        {
+            // Default fallback
+            NavigationManager.NavigateTo("/", replace: true);
+        }
+    }
+}

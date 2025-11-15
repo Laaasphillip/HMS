@@ -1,0 +1,539 @@
+﻿@page "/appointment-slot-configurations"
+@using HMS.Models
+@using HMS.Services
+@using Microsoft.AspNetCore.Authorization
+@inject AdminService AdminService
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "AdminOrStaff")]
+@rendermode InteractiveServer
+
+<PageTitle>Appointment Slot Configurations - HMS</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Appointment Slot Configurations</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Slot Configurations</li>
+                </ol>
+            </nav>
+        </div>
+        <button class="btn btn-primary" @onclick="() => OpenCreateModal()">
+            <i class="bi bi-plus-circle"></i> Add Configuration
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Configurations</h6>
+                            <h3 class="mb-0">@configurations.Count</h3>
+                        </div>
+                        <div class="text-primary">
+                            <i class="bi bi-gear-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Active Configurations</h6>
+                            <h3 class="mb-0">@configurations.Count(c => c.IsActive)</h3>
+                        </div>
+                        <div class="text-success">
+                            <i class="bi bi-check-circle-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Inactive Configurations</h6>
+                            <h3 class="mb-0">@configurations.Count(c => !c.IsActive)</h3>
+                        </div>
+                        <div class="text-warning">
+                            <i class="bi bi-pause-circle-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Staff Members</h6>
+                            <h3 class="mb-0">@allStaff.Count</h3>
+                        </div>
+                        <div class="text-info">
+                            <i class="bi bi-people-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Filters Section (Add this before the table card) -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <label class="form-label">Staff Member</label>
+                    <select class="form-select" @bind="selectedStaffId" @bind:after="ApplyFilters">
+                        <option value="">All Staff</option>
+                        @foreach (var staff in allStaff)
+                        {
+                            <option value="@staff.Id">@staff.User.FirstName @staff.User.LastName</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" @bind="selectedStatus" @bind:after="ApplyFilters">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" placeholder="Search by name or specialization..."
+                           @bind="searchTerm" @bind:after="ApplyFilters" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configurations Table -->
+    <div class="card">
+        <div class="card-body">
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (!filteredConfigurations.Any())
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                    <p class="text-muted mt-3">No configurations found</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Staff Member</th>
+                                <th>Specialization</th>
+                                <th>Slot Duration</th>
+                                <th>Buffer Time</th>
+                                <th>Max Patients/Slot</th>
+                                <th>Advance Booking Days</th>
+                                <th>Status</th>
+                                <th>Last Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var config in filteredConfigurations)
+                            {
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>@config.Staff?.User.FirstName @config.Staff?.User.LastName</strong>
+                                        </div>
+                                    </td>
+                                    <td>@config.Staff?.Specialization</td>
+                                    <td>@config.SlotDurationMinutes min</td>
+                                    <td>@config.BufferTimeMinutes min</td>
+                                    <td>@config.MaxPatientsPerSlot</td>
+                                    <td>@config.AdvanceBookingDays days</td>
+                                    <td>
+                                        @if (config.IsActive)
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning">Inactive</span>
+                                        }
+                                    </td>
+                                    <td>
+                                         
+                                        @if (config.UpdatedAt == null)
+                                        {
+                                            <span class="text-muted">"N/A"</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">@config.UpdatedAt?.ToString("MMM dd, yyyy HH:mm")</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" @onclick="() => OpenEditModal(config)">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" @onclick="() => OpenDeleteModal(config)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+@if (showEditModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(editingConfiguration.Id == 0 ? "Create" : "Edit") Slot Configuration</h5>
+                    <button type="button" class="btn-close" @onclick="CloseEditModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="editingConfiguration" OnValidSubmit="SaveConfiguration">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger" />
+
+                        <div class="mb-3">
+                            <label class="form-label">Staff Member *</label>
+                            <select class="form-select" @bind="editingConfiguration.StaffId" disabled="@(editingConfiguration.Id != 0)">
+                                <option value="0">Select Staff Member</option>
+                                @foreach (var staff in allStaff)
+                                {
+                                    <option value="@staff.Id">@staff.User.FirstName @staff.User.LastName - @staff.Specialization</option>
+                                }
+                            </select>
+                            @if (editingConfiguration.Id != 0)
+                            {
+                                <small class="text-muted">Staff member cannot be changed after creation</small>
+                            }
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Slot Duration (minutes) *</label>
+                                <input type="number" class="form-control" @bind="editingConfiguration.SlotDurationMinutes" min="5" max="240" step="5" />
+                                <small class="text-muted">Time allocated for each appointment slot</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Buffer Time (minutes) *</label>
+                                <input type="number" class="form-control" @bind="editingConfiguration.BufferTimeMinutes" min="0" max="60" step="5" />
+                                <small class="text-muted">Break time between appointments</small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Max Patients Per Slot *</label>
+                                <input type="number" class="form-control" @bind="editingConfiguration.MaxPatientsPerSlot" min="1" max="10" />
+                                <small class="text-muted">Maximum concurrent bookings per slot</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Advance Booking Days *</label>
+                                <input type="number" class="form-control" @bind="editingConfiguration.AdvanceBookingDays" min="1" max="365" />
+                                <small class="text-muted">How far ahead patients can book</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" @bind="editingConfiguration.IsActive" id="isActiveCheck" />
+                                <label class="form-check-label" for="isActiveCheck">
+                                    Active Configuration
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseEditModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Save Configuration
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the slot configuration for <strong>@deletingConfiguration?.Staff?.User.FirstName @deletingConfiguration?.Staff?.User.LastName</strong>?</p>
+                    <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteConfiguration" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AppointmentSlotConfiguration> configurations = new();
+    private List<AppointmentSlotConfiguration> filteredConfigurations = new();
+    private List<HMS.Models.Staff> allStaff = new();
+
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    // Filters
+    private string selectedStaffId = "";
+    private string selectedStatus = "";
+    private string searchTerm = "";
+
+    // Modals
+    private bool showEditModal = false;
+    private bool showDeleteModal = false;
+    private AppointmentSlotConfiguration editingConfiguration = new();
+    private AppointmentSlotConfiguration? deletingConfiguration;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            // Load all staff members
+            allStaff = await AdminService.GetAllStaffAsync();
+
+            // Load all configurations
+            configurations = await AdminService.GetAllAppointmentSlotConfigurationsAsync();
+
+            // ✅ Apply filters to populate filteredConfigurations
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading data: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // ✅ ADD THIS METHOD
+    private void ApplyFilters()
+    {
+        filteredConfigurations = configurations.ToList();
+
+        // Apply staff filter
+        if (!string.IsNullOrEmpty(selectedStaffId))
+        {
+            filteredConfigurations = filteredConfigurations
+                .Where(c => c.StaffId.ToString() == selectedStaffId)
+                .ToList();
+        }
+
+        // Apply status filter
+        if (!string.IsNullOrEmpty(selectedStatus))
+        {
+            bool isActive = selectedStatus == "active";
+            filteredConfigurations = filteredConfigurations
+                .Where(c => c.IsActive == isActive)
+                .ToList();
+        }
+
+        // Apply search filter
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            filteredConfigurations = filteredConfigurations
+                .Where(c => c.Staff != null &&
+                    (c.Staff.User.FirstName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                     c.Staff.User.LastName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                     (c.Staff.Specialization?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)))
+                .ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    private void OpenCreateModal()
+    {
+        editingConfiguration = new AppointmentSlotConfiguration
+        {
+            SlotDurationMinutes = 30,
+            BufferTimeMinutes = 5,
+            MaxPatientsPerSlot = 1,
+            AdvanceBookingDays = 30,
+            IsActive = true
+        };
+        showEditModal = true;
+    }
+
+    private void OpenEditModal(AppointmentSlotConfiguration config)
+    {
+        editingConfiguration = new AppointmentSlotConfiguration
+        {
+            Id = config.Id,
+            StaffId = config.StaffId,
+            SlotDurationMinutes = config.SlotDurationMinutes,
+            BufferTimeMinutes = config.BufferTimeMinutes,
+            MaxPatientsPerSlot = config.MaxPatientsPerSlot,
+            AdvanceBookingDays = config.AdvanceBookingDays,
+            IsActive = config.IsActive,
+            Staff = config.Staff
+        };
+        showEditModal = true;
+    }
+
+    private void CloseEditModal()
+    {
+        showEditModal = false;
+        editingConfiguration = new();
+    }
+
+    private async Task SaveConfiguration()
+    {
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+
+            if (editingConfiguration.StaffId == 0)
+            {
+                errorMessage = "Please select a staff member";
+                isSaving = false;  // ✅ Add this
+                return;
+            }
+
+            if (editingConfiguration.Id == 0)
+            {
+                await AdminService.CreateAppointmentSlotConfigurationAsync(editingConfiguration);
+                successMessage = "Configuration created successfully";
+            }
+            else
+            {
+                await AdminService.UpdateAppointmentSlotConfigurationAsync(editingConfiguration);
+                successMessage = "Configuration updated successfully";
+            }
+
+            CloseEditModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving configuration: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void OpenDeleteModal(AppointmentSlotConfiguration config)
+    {
+        deletingConfiguration = config;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        deletingConfiguration = null;
+    }
+
+    private async Task DeleteConfiguration()
+    {
+        if (deletingConfiguration == null) return;
+
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+
+            await AdminService.DeleteAppointmentSlotConfigurationAsync(deletingConfiguration.Id);
+            successMessage = "Configuration deleted successfully";
+
+            CloseDeleteModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting configuration: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

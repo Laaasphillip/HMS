@@ -1,0 +1,152 @@
+﻿@page "/admin/profile/edit/{UserId}"
+@using HMS.Data
+@using HMS.Services
+@inject AdminService AdminService
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<h3 class="mt-4 mb-3">
+    Edit User
+    @if (editModel?.Patient != null)
+    {
+        <span class="badge bg-success ms-2">Patient</span>
+    }
+    else if (editModel?.Staff != null)
+    {
+        <span class="badge bg-primary ms-2">Staff</span>
+    }
+    else
+    {
+        <span class="badge bg-secondary ms-2">User</span>
+    }
+</h3>
+
+@if (isLoading)
+{
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+}
+else if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else
+{
+    <EditForm Model="editModel" OnValidSubmit="SaveChanges">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">First Name</label>
+                <InputText class="form-control" @bind-Value="editModel.FirstName" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Last Name</label>
+                <InputText class="form-control" @bind-Value="editModel.LastName" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <InputText class="form-control" @bind-Value="editModel.Email" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Phone</label>
+                <InputText class="form-control" @bind-Value="editModel.PhoneNumber" />
+            </div>
+        </div>
+
+        @if (editModel.Patient != null)
+        {
+            <div class="mt-3">
+                <label class="form-label">Blood Group</label>
+                <InputText class="form-control" @bind-Value="editModel.Patient.BloodGroup" />
+            </div>
+        }
+
+        @if (editModel.Staff != null)
+        {
+            <div class="mt-3">
+                <label class="form-label">Specialization</label>
+                <InputText class="form-control" @bind-Value="editModel.Staff.Specialization" />
+            </div>
+        }
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary me-2">Save Changes</button>
+            <button type="button" class="btn btn-secondary" @onclick="GoBack">Cancel</button>
+        </div>
+    </EditForm>
+
+    @if (statusMessage != null)
+    {
+        <div class="alert alert-success mt-3">@statusMessage</div>
+    }
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger mt-3">@errorMessage</div>
+    }
+}
+
+@code {
+    [Parameter]
+    public string UserId { get; set; } = string.Empty;
+
+    private ApplicationUser? editModel;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private string? statusMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            editModel = await AdminService.GetUserByIdAsync(UserId);
+            if (editModel == null)
+                errorMessage = "User not found.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveChanges()
+    {
+        if (editModel == null)
+            return;
+
+        try
+        {
+            var success = await AdminService.UpdateUserAsync(editModel);
+
+            if (success)
+            {
+                if (editModel.Patient != null)
+                    await AdminService.UpdatePatientAsync(editModel.Patient);
+
+                if (editModel.Staff != null)
+                    await AdminService.UpdateStaffAsync(editModel.Staff);
+
+                statusMessage = "User updated successfully!";
+                errorMessage = null;
+            }
+            else
+            {
+                errorMessage = "Failed to update user.";
+                statusMessage = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving user: {ex.Message}";
+            statusMessage = null;
+        }
+    }
+
+    private void GoBack() => NavigationManager.NavigateTo("/admin/users");
+}

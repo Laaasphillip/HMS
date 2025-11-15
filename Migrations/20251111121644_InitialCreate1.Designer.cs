@@ -4,6 +4,7 @@ using HMS.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HMS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251111121644_InitialCreate1")]
+    partial class InitialCreate1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -306,7 +309,7 @@ namespace HMS.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("AppointmentId")
+                    b.Property<int>("AppointmentId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
@@ -338,8 +341,7 @@ namespace HMS.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AppointmentId")
-                        .IsUnique()
-                        .HasFilter("[AppointmentId] IS NOT NULL");
+                        .IsUnique();
 
                     b.HasIndex("PatientId");
 
@@ -546,7 +548,7 @@ namespace HMS.Migrations
                     b.Property<DateTime>("ClockIn")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("ClockOut")
+                    b.Property<DateTime>("ClockOut")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime>("CreatedAt")
@@ -559,7 +561,7 @@ namespace HMS.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("ScheduleId")
+                    b.Property<int>("ScheduleId")
                         .HasColumnType("int");
 
                     b.Property<int>("StaffId")
@@ -568,8 +570,7 @@ namespace HMS.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ScheduleId")
-                        .IsUnique()
-                        .HasFilter("[ScheduleId] IS NOT NULL");
+                        .IsUnique();
 
                     b.HasIndex("StaffId");
 

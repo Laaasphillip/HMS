@@ -233,6 +233,10 @@ namespace HMS.Services
                     var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                     return (false, $"Failed to create user account: {errors}", null);
                 }
+                else
+                {
+                    await _userManager.AddToRoleAsync(user, "Patient");
+                }
 
                 var patient = new Patient
                 {
@@ -365,7 +369,10 @@ namespace HMS.Services
                     var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                     return (false, $"Failed to create user account: {errors}", null);
                 }
-
+                else
+                {
+                    await _userManager.AddToRoleAsync(user, "Staff");
+                }
                 var staff = new Staff
                 {
                     UserId = user.Id,
@@ -501,5 +508,762 @@ namespace HMS.Services
 
         #endregion
 
+        #region Appointment Operations
+
+        #region Appointment CRUD
+        public async Task<List<Appointment>> GetAllAppointmentsAsync()
+        {
+            return await _context.Appointments
+                .Include(a => a.Patient)
+                    .ThenInclude(p => p.User)
+                .Include(a => a.Staff)
+                    .ThenInclude(s => s.User)
+                .Include(a => a.Schedule)
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
+        }
+
+        public async Task<Appointment?> GetAppointmentByIdAsync(int id)
+        {
+            return await _context.Appointments
+                .Include(a => a.Patient)
+                    .ThenInclude(p => p.User)
+                .Include(a => a.Staff)
+                    .ThenInclude(s => s.User)
+                .Include(a => a.Schedule)
+                .Include(a => a.Invoice)
+                .FirstOrDefaultAsync(a => a.Id == id);
+        }
+
+        public async Task<List<Appointment>> GetAppointmentsByPatientIdAsync(int patientId)
+        {
+            return await _context.Appointments
+                .Include(a => a.Staff)
+                    .ThenInclude(s => s.User)
+                .Include(a => a.AppointmentSlot)
+                .Include(a => a.Schedule)
+                .Where(a => a.PatientId == patientId)
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
+        }
+
+        public async Task<List<Appointment>> GetAppointmentsByStaffIdAsync(int staffId)
+        {
+            return await _context.Appointments
+                .Include(a => a.Patient)
+                    .ThenInclude(p => p.User)
+                .Include(a => a.Schedule)
+                .Where(a => a.StaffId == staffId)
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
+        }
+
+        public async Task<Appointment> CreateAppointmentAsync(Appointment appointment)
+        {
+            await EnsureAuthorizedAsync("Authenticated", "create appointments");
+
+            appointment.CreatedAt = DateTime.UtcNow;
+            appointment.UpdatedAt = DateTime.UtcNow;
+            _context.Appointments.Add(appointment);
+            await _context.SaveChangesAsync();
+            return appointment;
+        }
+
+        public async Task<bool> UpdateAppointmentAsync(Appointment appointment)
+        {
+            await EnsureAuthorizedAsync("AdminOrStaff", "update appointments");
+
+            appointment.UpdatedAt = DateTime.UtcNow;
+            _context.Appointments.Update(appointment);
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        public async Task<bool> DeleteAppointmentAsync(int id)
+        {
+            await EnsureAuthorizedAsync("AdminOnly", "delete appointments");
+
+            var appointment = await _context.Appointments.FindAsync(id);
+            if (appointment == null)
+                return false;
+
+            _context.Appointments.Remove(appointment);
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        #endregion
+
+        #region AppointmentSlot Operations (Delegate to AppointmentSlotService)
+
+        public async Task<List<AppointmentSlot>> GetAllAppointmentSlotsAsync()
+        {
+            return await _context.AppointmentSlots
+                .Include(s => s.Staff)
+                    .ThenInclude(staff => staff.User)
+                .Include(s => s.Schedule)
+                .OrderBy(s => s.Date)
+                .ThenBy(s => s.StartTime)
+                .ToListAsync();
+        }
+
+        public async Task<AppointmentSlot?> GetAppointmentSlotByIdAsync(int id)
+        {
+            return await _context.AppointmentSlots
+                .Include(s => s.Staff)
+                    .ThenInclude(staff => staff.User)
+                .Include(s => s.Schedule)
+                .Include(s => s.Appointments)
+                .FirstOrDefaultAsync(s => s.Id == id);
+        }
+
+        public async Task<List<AppointmentSlot>> GetAppointmentSlotsByStaffIdAsync(int staffId)
+        {
+            return await _context.AppointmentSlots
+                .Include(s => s.Staff)
+                    .ThenInclude(staff => staff.User)
+                .Include(s => s.Schedule)
+                .Where(s => s.StaffId == staffId)
+                .OrderBy(s => s.Date)
+                .ThenBy(s => s.StartTime)
+                .ToListAsync();
+        }
+
+        public async Task<List<AppointmentSlot>> GetAvailableAppointmentSlotsAsync(int? staffId = null, DateTime? fromDate = null, DateTime? toDate = null)
+        {
+            var query = _context.AppointmentSlots
+                .Include(s => s.Staff)
+                    .ThenInclude(staff => staff.User)
+                .Where(s => s.Status == "Available" && s.CurrentBookings < s.MaxCapacity);
+
+            if (staffId.HasValue)
+                query = query.Where(s => s.StaffId == staffId.Value);
+
+            if (fromDate.HasValue)
+                query = query.Where(s => s.Date >= fromDate.Value);
+
+            if (toDate.HasValue)
+                query = query.Where(s => s.Date <= toDate.Value);
+
+            return await query
+                .OrderBy(s => s.Date)
+                .ThenBy(s => s.StartTime)
+                .ToListAsync();
+        }
+
+        public async Task<AppointmentSlot> CreateAppointmentSlotAsync(AppointmentSlot slot)
+        {
+            await EnsureAuthorizedAsync("AdminOrStaff", "create appointment slots");
+
+            slot.CreatedAt = DateTime.UtcNow;
+            _context.AppointmentSlots.Add(slot);
+            await _context.SaveChangesAsync();
+            return slot;
+        }
+
+        public async Task<bool> UpdateAppointmentSlotAsync(AppointmentSlot slot)
+        {
+            await EnsureAuthorizedAsync("AdminOrStaff", "update appointment slots");
+
+            _context.AppointmentSlots.Update(slot);
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        public async Task<bool> DeleteAppointmentSlotAsync(int id)
+        {
+            await EnsureAuthorizedAsync("AdminOnly", "delete appointment slots");
+
+            var slot = await _context.AppointmentSlots.FindAsync(id);
+            if (slot == null)
+                return false;
+
+            // Don't allow deleting slots that have bookings
+            if (slot.CurrentBookings > 0)
+                throw new InvalidOperationException("Cannot delete appointment slot with existing bookings");
+
+            _context.AppointmentSlots.Remove(slot);
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        /// <summary>
+        /// Book an appointment slot (increment bookings counter)
+        /// </summary>
+        public async Task<bool> BookAppointmentSlotAsync(int slotId)
+        {
+            var slot = await _context.AppointmentSlots.FindAsync(slotId);
+            if (slot == null)
+                return false;
+
+            if (slot.Status != "Available")
+                throw new InvalidOperationException("Appointment slot is not available for booking");
+
+            if (slot.CurrentBookings >= slot.MaxCapacity)
+                throw new InvalidOperationException("Appointment slot is fully booked");
+
+            slot.CurrentBookings++;
+
+            // Mark as booked if at capacity
+            if (slot.CurrentBookings >= slot.MaxCapacity)
+                slot.Status = "Booked";
+
+            _context.AppointmentSlots.Update(slot);
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        /// <summary>
+        /// Cancel a booking in an appointment slot (decrement bookings counter)
+        /// </summary>
+        public async Task<bool> CancelAppointmentSlotBookingAsync(int slotId)
+        {
+            var slot = await _context.AppointmentSlots.FindAsync(slotId);
+            if (slot == null)
+                return false;
+
+            if (slot.CurrentBookings > 0)
+            {
+                slot.CurrentBookings--;
+
+                // Mark as available if below capacity
+                if (slot.CurrentBookings < slot.MaxCapacity && slot.Status == "Booked")
+                    slot.Status = "Available";
+
+                _context.AppointmentSlots.Update(slot);
+                return await _context.SaveChangesAsync() > 0;
+            }
+
+            return false;
+        }
+
+        #endregion
+
+        #region AppointmentSlotConfiguration Operations
+
+        public async Task<List<AppointmentSlotConfiguration>> GetAllSlotConfigurationsAsync()
+        {
+            return await _context.AppointmentSlotConfigurations
+                .Include(c => c.Staff)
+                    .ThenInclude(s => s.User)
+                .OrderByDescending(c => c.CreatedAt)
+                .ToListAsync();
+        }
+
+        // Alias for UI compatibility
+        public async Task<List<AppointmentSlotConfiguration>> GetAllAppointmentSlotConfigurationsAsync()
+        {
+            return await GetAllSlotConfigurationsAsync();
+        }
+
+        public async Task<AppointmentSlotConfiguration?> GetSlotConfigurationByIdAsync(int id)
+        {
+            return await _context.AppointmentSlotConfigurations
+                .Include(c => c.Staff)
+                    .ThenInclude(s => s.User)
+                .FirstOrDefaultAsync(c => c.Id == id);
+        }
+
+        public async Task<AppointmentSlotConfiguration?> GetSlotConfigurationByStaffIdAsync(int staffId)
+        {
+            return await _context.AppointmentSlotConfigurations
+                .Where(c => c.StaffId == staffId && c.IsActive)
+                .OrderByDescending(c => c.CreatedAt)
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task<AppointmentSlotConfiguration> CreateSlotConfigurationAsync(AppointmentSlotConfiguration config)
+        {
+            await EnsureAuthorizedAsync("AdminOrStaff", "create slot configurations");
+
+            config.CreatedAt = DateTime.UtcNow;
+            _context.AppointmentSlotConfigurations.Add(config);
+            await _context.SaveChangesAsync();
+            return config;
+        }
+
+        // Alias for UI compatibility
+        public async Task<AppointmentSlotConfiguration> CreateAppointmentSlotConfigurationAsync(AppointmentSlotConfiguration config)
+        {
+            return await CreateSlotConfigurationAsync(config);
+        }
+
+        public async Task<bool> UpdateSlotConfigurationAsync(AppointmentSlotConfiguration config)
+        {
+            await EnsureAuthorizedAsync("AdminOrStaff", "update slot configurations");
+
+            config.UpdatedAt = DateTime.UtcNow;
+            _context.AppointmentSlotConfigurations.Update(config);
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        // Alias for UI compatibility
+        public async Task<bool> UpdateAppointmentSlotConfigurationAsync(AppointmentSlotConfiguration config)
+        {
+            return await UpdateSlotConfigurationAsync(config);
+        }
+
+        public async Task<bool> DeleteSlotConfigurationAsync(int id)
+        {
+            await EnsureAuthorizedAsync("AdminOnly", "delete slot configurations");
+
+            var config = await _context.AppointmentSlotConfigurations.FindAsync(id);
+            if (config == null)
+                return false;
+
+            _context.AppointmentSlotConfigurations.Remove(config);
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        // Alias for UI compatibility
+        public async Task<bool> DeleteAppointmentSlotConfigurationAsync(int id)
+        {
+            return await DeleteSlotConfigurationAsync(id);
+        }
+
+        #endregion
+
+        #region AppointmentBlock Operations
+
+        public async Task<List<AppointmentBlock>> GetAllAppointmentBlocksAsync()
+        {
+            return await _context.AppointmentBlocks
+                .Include(b => b.Staff)
+                    .ThenInclude(s => s.User)
+                .Where(b => b.IsActive)
+                .OrderBy(b => b.Date)
+                .ThenBy(b => b.StartTime)
+                .ToListAsync();
+        }
+
+        public async Task<AppointmentBlock?> GetAppointmentBlockByIdAsync(int id)
+        {
+            return await _context.AppointmentBlocks
+                .Include(b => b.Staff)
+                    .ThenInclude(s => s.User)
+                .FirstOrDefaultAsync(b => b.Id == id);
+        }
+
+        public async Task<List<AppointmentBlock>> GetAppointmentBlocksByStaffIdAsync(int staffId)
+        {
+            return await _context.AppointmentBlocks
+                .Include(b => b.Staff)
+                    .ThenInclude(s => s.User)
+                .Where(b => b.StaffId == staffId && b.IsActive)
+                .OrderBy(b => b.Date)
+                .ThenBy(b => b.StartTime)
+                .ToListAsync();
+        }
+
+        public async Task<AppointmentBlock> CreateAppointmentBlockAsync(AppointmentBlock block)
+        {
+            await EnsureAuthorizedAsync("AdminOrStaff", "create appointment blocks");
+
+            block.CreatedAt = DateTime.UtcNow;
+            block.IsActive = true;
+            _context.AppointmentBlocks.Add(block);
+            await _context.SaveChangesAsync();
+
+            // Block any existing slots that overlap with this block
+            await BlockOverlappingSlotsAsync(block);
+
+            return block;
+        }
+
+        public async Task<bool> UpdateAppointmentBlockAsync(AppointmentBlock block)
+        {
+            await EnsureAuthorizedAsync("AdminOrStaff", "update appointment blocks");
+
+            _context.AppointmentBlocks.Update(block);
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        public async Task<bool> DeleteAppointmentBlockAsync(int id)
+        {
+            await EnsureAuthorizedAsync("AdminOrStaff", "delete appointment blocks");
+
+            var block = await _context.AppointmentBlocks.FindAsync(id);
+            if (block == null)
+                return false;
+
+            // Soft delete by marking as inactive
+            block.IsActive = false;
+            _context.AppointmentBlocks.Update(block);
+
+            // Unblock any slots that were blocked by this block
+            await UnblockOverlappingSlotsAsync(block);
+
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        private async Task BlockOverlappingSlotsAsync(AppointmentBlock block)
+        {
+            var overlappingSlots = await _context.AppointmentSlots
+                .Where(s => s.StaffId == block.StaffId
+                    && s.Date.Date == block.Date.Date
+                    && s.StartTime < block.EndTime
+                    && s.EndTime > block.StartTime
+                    && s.Status == "Available")
+                .ToListAsync();
+
+            foreach (var slot in overlappingSlots)
+            {
+                slot.Status = "Blocked";
+                _context.AppointmentSlots.Update(slot);
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task UnblockOverlappingSlotsAsync(AppointmentBlock block)
+        {
+            var overlappingSlots = await _context.AppointmentSlots
+                .Where(s => s.StaffId == block.StaffId
+                    && s.Date.Date == block.Date.Date
+                    && s.StartTime < block.EndTime
+                    && s.EndTime > block.StartTime
+                    && s.Status == "Blocked"
+                    && s.CurrentBookings < s.MaxCapacity)
+                .ToListAsync();
+
+            // Check if there are other active blocks that still overlap
+            var otherActiveBlocks = await _context.AppointmentBlocks
+                .Where(b => b.Id != block.Id
+                    && b.StaffId == block.StaffId
+                    && b.Date.Date == block.Date.Date
+                    && b.IsActive)
+                .ToListAsync();
+
+            foreach (var slot in overlappingSlots)
+            {
+                // Only unblock if no other blocks overlap with this slot
+                var hasOtherBlock = otherActiveBlocks.Any(b =>
+                    slot.StartTime < b.EndTime && slot.EndTime > b.StartTime);
+
+                if (!hasOtherBlock)
+                {
+                    slot.Status = "Available";
+                    _context.AppointmentSlots.Update(slot);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        #endregion
+
+        #region Slot Generation
+
+        /// <summary>
+        /// Generate appointment slots for a schedule based on staff configuration
+        /// </summary>
+        public async Task<List<AppointmentSlot>> GenerateSlotsForScheduleAsync(int scheduleId)
+        {
+            await EnsureAuthorizedAsync("AdminOrStaff", "generate appointment slots");
+
+            var schedule = await _context.Schedules
+                .Include(s => s.Staff)
+                .FirstOrDefaultAsync(s => s.Id == scheduleId);
+
+            if (schedule == null)
+                throw new InvalidOperationException($"Schedule with ID {scheduleId} not found");
+
+            // Check if slots have already been generated
+            if (schedule.SlotsGenerated)
+                throw new InvalidOperationException("Slots have already been generated for this schedule");
+
+            // Get configuration for this staff member
+            var config = await GetSlotConfigurationByStaffIdAsync(schedule.StaffId);
+            if (config == null)
+            {
+                // Create a default configuration if none exists
+                config = new AppointmentSlotConfiguration
+                {
+                    StaffId = schedule.StaffId,
+                    SlotDurationMinutes = 30,
+                    BufferTimeMinutes = 0,
+                    MaxPatientsPerSlot = 1,
+                    AdvanceBookingDays = 30,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await CreateSlotConfigurationAsync(config);
+            }
+
+            var generatedSlots = new List<AppointmentSlot>();
+
+            // Calculate total slot duration (slot + buffer)
+            var totalSlotDuration = config.SlotDurationMinutes + config.BufferTimeMinutes;
+
+            // Generate slots from start time to end time
+            var currentTime = schedule.StartTime;
+            var scheduleDate = schedule.Date.Date;
+
+            // Get any blocks for this staff on this date
+            var blocks = await GetAppointmentBlocksByStaffIdAsync(schedule.StaffId);
+            blocks = blocks.Where(b => b.Date.Date == scheduleDate).ToList();
+
+            while (currentTime.Add(TimeSpan.FromMinutes(config.SlotDurationMinutes)) <= schedule.EndTime)
+            {
+                // Skip break time
+                if (schedule.BreakStart.HasValue && schedule.BreakEnd.HasValue)
+                {
+                    if (currentTime >= schedule.BreakStart.Value && currentTime < schedule.BreakEnd.Value)
+                    {
+                        currentTime = schedule.BreakEnd.Value;
+                        continue;
+                    }
+                }
+
+                var slotEndTime = currentTime.Add(TimeSpan.FromMinutes(config.SlotDurationMinutes));
+
+                // Check if this slot overlaps with any blocks (comparing TimeSpan values)
+                var isBlocked = blocks.Any(b =>
+                    currentTime < b.EndTime && slotEndTime > b.StartTime);
+
+                var slot = new AppointmentSlot
+                {
+                    ScheduleId = scheduleId,
+                    StaffId = schedule.StaffId,
+                    Date = scheduleDate,
+                    StartTime = currentTime,
+                    EndTime = slotEndTime,
+                    Status = isBlocked ? "Blocked" : "Available",
+                    MaxCapacity = config.MaxPatientsPerSlot,
+                    CurrentBookings = 0,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.AppointmentSlots.Add(slot);
+                generatedSlots.Add(slot);
+
+                // Move to next slot (including buffer time)
+                currentTime = currentTime.Add(TimeSpan.FromMinutes(totalSlotDuration));
+            }
+
+            // Mark schedule as having slots generated
+            schedule.SlotsGenerated = true;
+            schedule.UpdatedAt = DateTime.UtcNow;
+            _context.Schedules.Update(schedule);
+
+            await _context.SaveChangesAsync();
+
+            return generatedSlots;
+        }
+
+        /// <summary>
+        /// Regenerate slots for a schedule (delete old slots and create new ones)
+        /// </summary>
+        public async Task<List<AppointmentSlot>> RegenerateSlotsForScheduleAsync(int scheduleId)
+        {
+            await EnsureAuthorizedAsync("AdminOrStaff", "regenerate appointment slots");
+
+            // Delete existing slots without bookings
+            var existingSlots = await _context.AppointmentSlots
+                .Where(s => s.ScheduleId == scheduleId && s.CurrentBookings == 0)
+                .ToListAsync();
+
+            _context.AppointmentSlots.RemoveRange(existingSlots);
+            await _context.SaveChangesAsync();
+
+            // Reset the SlotsGenerated flag
+            var schedule = await _context.Schedules.FindAsync(scheduleId);
+            if (schedule != null)
+            {
+                schedule.SlotsGenerated = false;
+                _context.Schedules.Update(schedule);
+                await _context.SaveChangesAsync();
+            }
+
+            // Generate new slots
+            return await GenerateSlotsForScheduleAsync(scheduleId);
+        }
+
+        #endregion
+
+        #endregion
+
+        #region Statistics
+
+        public async Task<int> GetTotalPatientsCountAsync()
+        {
+            return await _context.Patients.CountAsync();
+        }
+
+        public async Task<int> GetTotalStaffCountAsync()
+        {
+            return await _context.Staff.CountAsync();
+        }
+
+        public async Task<int> GetTotalSchedulesCountAsync()
+        {
+            return await _context.Schedules.CountAsync();
+        }
+
+        public async Task<decimal> GetTotalTransactionAmountAsync()
+        {
+            return await _context.Transactions
+                .Where(t => t.Status == "Completed" || t.Status == "Success")
+                .SumAsync(t => t.Amount);
+        }
+
+        public async Task<int> GetTotalAppointmentsCountAsync()
+        {
+            return await _context.Appointments.CountAsync();
+        }
+
+        public async Task<int> GetTotalInvoicesCountAsync()
+        {
+            return await _context.Invoices.CountAsync();
+        }
+
+        public async Task<int> GetTotalTimeReportsCountAsync()
+        {
+            return await _context.TimeReports.CountAsync();
+        }
+
+        public async Task<int> GetPendingInvoicesCountAsync()
+        {
+            return await _context.Invoices
+                .Where(i => i.Status == "Pending")
+                .CountAsync();
+        }
+
+        public async Task<decimal> GetPendingInvoicesAmountAsync()
+        {
+            return await _context.Invoices
+                .Where(i => i.Status == "Pending")
+                .SumAsync(i => i.TotalAmount);
+        }
+
+        public async Task<List<ApplicationUser>> GetAllUsersAsync()
+        {
+            return await _context.Users
+                .Include(u => u.Patient)
+                .Include(u => u.Staff)
+                .ToListAsync();
+        }
+        public async Task<ApplicationUser?> GetCurrentUserAsync()
+        {
+            var userId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return null;
+
+            return await _context.Users
+                .Include(u => u.Patient)
+                .Include(u => u.Staff)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+        }
+
+        public async Task<ApplicationUser?> GetUserByIdAsync (string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+
+            return await _userManager.Users
+                .Include (u => u.Patient)
+                .Include(u => u.Staff)
+                .FirstOrDefaultAsync (u => u.Id == id);
+        }
+
+        public async Task<IList<string>> GetUserRolesAsync(ApplicationUser user)
+        {
+            if (user == null) return new List<string>();
+            return await _userManager.GetRolesAsync(user);
+        }
+
+        public async Task<IList<string>> GetCurrentUserRolesAsync()
+        {
+            var user = await GetCurrentUserAsync();
+            if (user == null) return new List<string>();
+            return await GetUserRolesAsync(user);
+        }
+
+        public async Task<bool> UpdateUserAsync(ApplicationUser user)
+        {
+            if (user == null) return false;
+
+            try
+            {
+                //Update Identity fields
+                var identityResult = await _userManager.UpdateAsync(user);
+                if (!identityResult.Succeeded)
+                {
+                    Console.WriteLine("Identity update failed: " + string.Join(", ", identityResult.Errors.Select(e => e.Description)));
+                    return false;
+                }
+
+                //Save custom fields in ApplicationUser
+                _context.Users.Update(user);
+                var rowsAffected = await _context.SaveChangesAsync();
+
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating user: {ex.Message}");
+                return false;
+            }
+        }
+        #endregion
+
+        #region Invoice Management
+
+        public async Task<List<Appointment>> GetAllAppointmentsAsync()
+        {
+            return await _context.Appointments
+                .Include(a => a.Patient)
+                    .ThenInclude(p => p.User)
+                .ToListAsync();
+        }
+
+        public async Task<List<Invoice>> GetAllInvoicesAsync()
+        {
+            return await _context.Invoices
+                .Include(i => i.Appointment)
+                    .ThenInclude(a => a.Patient)
+                .Include(i => i.Appointment)
+                    .ThenInclude(a => a.Staff)
+                .ToListAsync();
+        }
+
+        public async Task<Invoice?> GetInvoiceByIdAsync(int id)
+        {
+            return await _context.Invoices
+                .Include(i => i.Appointment)
+                    .ThenInclude(a => a.Patient)
+                .Include(i => i.Appointment)
+                    .ThenInclude(a => a.Staff)
+                .FirstOrDefaultAsync(i => i.Id == id);
+        }
+
+        public async Task<Invoice> CreateInvoiceAsync(Invoice invoice)
+        {
+            var appointment = await _context.Appointments
+                .FirstOrDefaultAsync(a => a.Id == invoice.AppointmentId);
+
+            if (appointment == null)
+                throw new Exception("Appointment not found for this invoice.");
+
+            _context.Invoices.Add(invoice);
+            await _context.SaveChangesAsync();
+
+            appointment.Invoice = invoice;
+            _context.Appointments.Update(appointment);
+            await _context.SaveChangesAsync();
+
+            return invoice;
+        }
+
+        public async Task UpdateInvoiceAsync(Invoice invoice)
+        {
+            _context.Invoices.Update(invoice);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteInvoiceAsync(int id)
+        {
+            var invoice = await _context.Invoices.FindAsync(id);
+            if (invoice != null)
+            {
+                _context.Invoices.Remove(invoice);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        #endregion
     }
 }

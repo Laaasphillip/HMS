@@ -1,0 +1,880 @@
+﻿@page "/book-appointment"
+@using HMS.Models
+@using HMS.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject AdminService AdminService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>Book Appointment</PageTitle>
+
+<style>
+    .date-scroll {
+        display: flex;
+        gap: 0.75rem;
+        overflow-x: auto;
+        padding: 0.5rem 0;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .date-card {
+        min-width: 90px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .slot-card {
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+        .slot-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .slot-card.booked {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1050;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .modal-dialog-custom {
+        width: 100%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="mb-4">
+        <h1 class="h2 fw-bold text-dark mb-2">
+            <i class="bi bi-calendar-heart me-2"></i>Book Appointment
+        </h1>
+        <p class="text-muted mb-0">Schedule your visit with our healthcare professionals</p>
+    </div>
+
+    <!-- Alerts -->
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>Error:</strong> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <strong>Success:</strong> @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    @if (loading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading available appointments...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Stats Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="bg-primary bg-opacity-10 text-primary rounded p-3 me-3">
+                            <i class="bi bi-calendar-check fs-3"></i>
+                        </div>
+                        <div>
+                            <h3 class="h4 fw-bold mb-0">@availableSlots.Count(s => s.IsAvailable)</h3>
+                            <p class="text-muted small mb-0">Available</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="bg-success bg-opacity-10 text-success rounded p-3 me-3">
+                            <i class="bi bi-person-badge fs-3"></i>
+                        </div>
+                        <div>
+                            <h3 class="h4 fw-bold mb-0">@filteredDoctors.Count</h3>
+                            <p class="text-muted small mb-0">Doctors</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="bg-info bg-opacity-10 text-info rounded p-3 me-3">
+                            <i class="bi bi-building fs-3"></i>
+                        </div>
+                        <div>
+                            <h3 class="h4 fw-bold mb-0">@departments.Count</h3>
+                            <p class="text-muted small mb-0">Departments</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="bg-warning bg-opacity-10 text-warning rounded p-3 me-3">
+                            <i class="bi bi-calendar2-check fs-3"></i>
+                        </div>
+                        <div>
+                            <h3 class="h4 fw-bold mb-0">@myAppointments.Count</h3>
+                            <p class="text-muted small mb-0">My Bookings</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                    <h5 class="mb-0 fw-semibold">
+                        <i class="bi bi-sliders me-2"></i>Filters
+                    </h5>
+                    @if (HasActiveFilters())
+                    {
+                        <button class="btn btn-outline-danger btn-sm" @onclick="ClearFilters">
+                            <i class="bi bi-x-lg me-1"></i>Clear All
+                        </button>
+                    }
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-uppercase fw-semibold text-muted small">
+                            <i class="bi bi-building me-1"></i>Department
+                        </label>
+                        <select class="form-select" @bind="selectedDepartment" @bind:after="ApplyFilters">
+                            <option value="">All Departments</option>
+                            @foreach (var dept in departments)
+                            {
+                                <option value="@dept">@dept</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-uppercase fw-semibold text-muted small">
+                            <i class="bi bi-person-badge me-1"></i>Doctor
+                        </label>
+                        <select class="form-select" @bind="selectedDoctorId" @bind:after="ApplyFilters">
+                            <option value="0">All Doctors</option>
+                            @foreach (var doctor in GetDoctorsList())
+                            {
+                                <option value="@doctor.Id">
+                                    Dr. @doctor.User?.FirstName @doctor.User?.LastName
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                @if (HasActiveFilters())
+                {
+                    <div class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
+                        @if (!string.IsNullOrEmpty(selectedDepartment))
+                        {
+                            <span class="badge bg-primary d-inline-flex align-items-center px-3 py-2 fs-6">
+                                <i class="bi bi-building me-2"></i>
+                                @selectedDepartment
+                                <button class="btn btn-link text-white p-0 ms-2 border-0 bg-transparent"
+                                        @onclick="() => { selectedDepartment = string.Empty; ApplyFilters(); }">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </span>
+                        }
+                        @if (selectedDoctorId > 0)
+                        {
+                            var doctor = allDoctors.FirstOrDefault(d => d.Id == selectedDoctorId);
+                            <span class="badge bg-primary d-inline-flex align-items-center px-3 py-2 fs-6">
+                                <i class="bi bi-person-badge me-2"></i>
+                                Dr. @doctor?.User?.FirstName
+                                <button class="btn btn-link text-white p-0 ms-2 border-0 bg-transparent"
+                                        @onclick="() => { selectedDoctorId = 0; ApplyFilters(); }">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </span>
+                        }
+                        @if (selectedDate != DateTime.MinValue)
+                        {
+                            <span class="badge bg-primary d-inline-flex align-items-center px-3 py-2 fs-6">
+                                <i class="bi bi-calendar me-2"></i>
+                                @selectedDate.ToString("MMM dd")
+                                <button class="btn btn-link text-white p-0 ms-2 border-0 bg-transparent"
+                                        @onclick="() => { selectedDate = DateTime.MinValue; ApplyFilters(); }">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Date Selector -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0 fw-semibold">
+                        <i class="bi bi-calendar-week me-2"></i>Select Date
+                    </h5>
+                    <button class="btn btn-outline-primary btn-sm" @onclick="GoToToday">
+                        <i class="bi bi-calendar-today me-1"></i>Today
+                    </button>
+                </div>
+                <div class="date-scroll">
+                    @for (int i = 0; i < 14; i++)
+                    {
+                        var date = DateTime.Today.AddDays(i);
+                        var isSelected = selectedDate != DateTime.MinValue && selectedDate.Date == date.Date;
+                        var hasSlots = availableSlots.Any(s => s.Date.Date == date.Date && s.IsAvailable);
+
+                        <div class="date-card card @(isSelected ? "border-primary bg-primary text-white" : "border-2") text-center p-3"
+                             @onclick="() => SelectDate(date)">
+                            @if (hasSlots && !isSelected)
+                            {
+                                <span class="position-absolute top-0 start-100 translate-middle p-1 bg-success border border-light rounded-circle">
+                                    <span class="visually-hidden">Available slots</span>
+                                </span>
+                            }
+                            <div class="text-uppercase fw-semibold small mb-1">
+                                @date.ToString("ddd")
+                            </div>
+                            <div class="fs-4 fw-bold mb-1">@date.Day</div>
+                            <div class="small @(isSelected ? "text-white-50" : "text-muted")">
+                                @date.ToString("MMM")
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Available Slots -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                    <h5 class="mb-0 fw-semibold">
+                        Available Time Slots
+                        <span class="badge bg-primary ms-2">@availableSlots.Count(s => s.IsAvailable)</span>
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <span class="badge bg-success">
+                            <i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i> Available
+                        </span>
+                        <span class="badge bg-secondary">
+                            <i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i> Booked
+                        </span>
+                    </div>
+                </div>
+
+                @if (availableSlots.Any())
+                {
+                    @foreach (var doctorGroup in availableSlots.GroupBy(s => s.StaffId).OrderBy(g => g.First().DoctorName))
+                    {
+                        var firstSlot = doctorGroup.First();
+                        var doctorAvailableSlots = doctorGroup.Where(s => s.IsAvailable).Count();
+
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <!-- Doctor Header -->
+                            <div class="d-flex align-items-center mb-3 pb-3 border-bottom">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold me-3 shadow"
+                                     style="width: 56px; height: 56px; font-size: 1.25rem;">
+                                    @GetInitials(firstSlot.DoctorName)
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold fs-5 mb-1">Dr. @firstSlot.DoctorName</div>
+                                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                                        <span class="badge bg-info">
+                                            <i class="bi bi-building me-1"></i>@firstSlot.Department
+                                        </span>
+                                        <span class="text-muted small">
+                                            <i class="bi bi-calendar-check me-1"></i>
+                                            @doctorAvailableSlots available slot@(doctorAvailableSlots != 1 ? "s" : "")
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Slots Grid -->
+                            <div class="row g-3">
+                                @foreach (var slot in doctorGroup.OrderBy(s => s.Date).ThenBy(s => s.StartTime))
+                                {
+                                    var isToday = slot.Date.Date == DateTime.Today;
+                                    var cardClass = slot.IsAvailable ? "slot-card card border-success border-2 h-100 shadow-sm" : "slot-card booked card border-2 h-100 bg-light";
+
+                                    <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                                        <div class="@cardClass" @onclick="() => { if (slot.IsAvailable) ShowBookingModal(slot); }">
+                                            <div class="card-body p-3">
+                                                <div class="text-muted small mb-2">
+                                                    <i class="bi bi-calendar3 me-1"></i>
+                                                    @if (isToday)
+                                                    {
+                                                        <span class="fw-bold">Today</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>@slot.Date.ToString("ddd, MMM dd")</span>
+                                                    }
+                                                </div>
+                                                <div class="fw-semibold fs-5 mb-2">
+                                                    <i class="bi bi-clock me-1"></i>
+                                                    @slot.StartTime.ToString(@"hh\:mm") - @slot.EndTime.ToString(@"hh\:mm")
+                                                </div>
+                                                <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                                                    <span class="text-muted small">
+                                                        <i class="bi bi-hourglass-split me-1"></i>
+                                                        @((slot.EndTime - slot.StartTime).TotalMinutes) min
+                                                    </span>
+                                                    @if (slot.IsAvailable)
+                                                    {
+                                                        <span class="badge bg-success">Available</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary">Booked</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-calendar-x text-muted display-1 opacity-25"></i>
+                        <h5 class="fw-semibold mt-3">No Available Slots</h5>
+                        <p class="text-muted mb-3">Try adjusting your filters or selecting a different date</p>
+                        @if (HasActiveFilters())
+                        {
+                            <button class="btn btn-primary" @onclick="ClearFilters">
+                                <i class="bi bi-arrow-counterclockwise me-2"></i>Clear Filters
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-primary" @onclick="GoToToday">
+                                <i class="bi bi-calendar-day me-2"></i>Check Today
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Booking Modal -->
+@if (showBookingModal && selectedSlot != null)
+{
+    <div class="modal-overlay" @onclick="CloseBookingModal">
+        <div class="modal-dialog-custom" @onclick:stopPropagation="true">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-white d-flex justify-content-between align-items-start p-4">
+                    <div>
+                        <h5 class="mb-1 fw-semibold">
+                            <i class="bi bi-calendar-heart me-2"></i>Confirm Appointment
+                        </h5>
+                        <p class="text-muted small mb-0">Review and confirm your booking details</p>
+                    </div>
+                    <button type="button" class="btn-close" @onclick="CloseBookingModal"></button>
+                </div>
+
+                <div class="card-body p-4">
+                    <EditForm Model="bookingModel" OnValidSubmit="ConfirmBooking">
+                        <DataAnnotationsValidator />
+
+                        <!-- Appointment Summary -->
+                        <div class="bg-light border rounded p-3 mb-4">
+                            <div class="text-uppercase fw-semibold text-muted small mb-3">
+                                Appointment Details
+                            </div>
+
+                            <div class="d-flex align-items-start mb-3">
+                                <div class="bg-white rounded p-2 me-3 shadow-sm">
+                                    <i class="bi bi-person-badge text-primary fs-4"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="text-uppercase text-muted small mb-1">Doctor</div>
+                                    <div class="fw-medium">Dr. @selectedSlot.DoctorName</div>
+                                    <div class="text-muted small">@selectedSlot.Department</div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex align-items-start mb-3">
+                                <div class="bg-white rounded p-2 me-3 shadow-sm">
+                                    <i class="bi bi-calendar-event text-primary fs-4"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="text-uppercase text-muted small mb-1">Date & Time</div>
+                                    <div class="fw-medium">@selectedSlot.Date.ToString("dddd, MMMM dd, yyyy")</div>
+                                    <div class="fw-medium">@selectedSlot.StartTime.ToString(@"hh\:mm") - @selectedSlot.EndTime.ToString(@"hh\:mm")</div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex align-items-start">
+                                <div class="bg-white rounded p-2 me-3 shadow-sm">
+                                    <i class="bi bi-clock text-primary fs-4"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="text-uppercase text-muted small mb-1">Duration</div>
+                                    <div class="fw-medium">@((selectedSlot.EndTime - selectedSlot.StartTime).TotalMinutes) minutes</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Patient Selection (Admin/Staff) -->
+                        <AuthorizeView Policy="AdminOrStaff" Context="authContext">
+                            <Authorized>
+                                <div class="alert alert-info d-flex align-items-start mb-3">
+                                    <i class="bi bi-info-circle fs-5 me-2"></i>
+                                    <div>
+                                        <strong>Admin Booking</strong><br />
+                                        <small>Select the patient for this appointment</small>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">
+                                        <i class="bi bi-person-fill me-1"></i>Patient *
+                                    </label>
+                                    <select class="form-select" @bind="bookingModel.SelectedPatientId">
+                                        <option value="0">-- Select Patient --</option>
+                                        @foreach (var patient in allPatients)
+                                        {
+                                            <option value="@patient.Id">
+                                                @patient.User?.FirstName @patient.User?.LastName (@patient.User?.Email)
+                                            </option>
+                                        }
+                                    </select>
+                                    @if (bookingModel.SelectedPatientId == 0)
+                                    {
+                                        <div class="text-danger small mt-1">
+                                            <i class="bi bi-exclamation-circle me-1"></i>Please select a patient
+                                        </div>
+                                    }
+                                </div>
+                            </Authorized>
+                        </AuthorizeView>
+
+                        <!-- Reason -->
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">
+                                <i class="bi bi-clipboard-pulse me-1"></i>Reason for Visit *
+                            </label>
+                            <select class="form-select" @bind="bookingModel.Reason">
+                                <option value="">-- Select Reason --</option>
+                                <option value="Regular Checkup">Regular Checkup</option>
+                                <option value="Follow-up Visit">Follow-up Visit</option>
+                                <option value="Consultation">Consultation</option>
+                                <option value="Emergency">Emergency</option>
+                                <option value="Lab Results">Lab Results Review</option>
+                                <option value="Prescription Renewal">Prescription Renewal</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            <ValidationMessage For="@(() => bookingModel.Reason)" class="text-danger small" />
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">
+                                <i class="bi bi-chat-left-text me-1"></i>Additional Notes
+                                <span class="text-muted fw-normal">(Optional)</span>
+                            </label>
+                            <textarea class="form-control" @bind="bookingModel.Notes" rows="3"
+                                      placeholder="Describe your symptoms or any information that might help the doctor..."></textarea>
+                            <small class="text-muted">
+                                <i class="bi bi-shield-check me-1"></i>Your information is confidential and secure
+                            </small>
+                        </div>
+
+                        <!-- Price -->
+                        <div class="bg-light border rounded p-3 mb-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-medium">
+                                    <i class="bi bi-cash-coin me-2"></i>Consultation Fee
+                                </span>
+                                <span class="fs-4 fw-bold text-success">SEK 500.00</span>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseBookingModal">
+                                <i class="bi bi-x-circle me-1"></i>Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary" disabled="@booking">
+                                @if (booking)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Booking...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    <span>Confirm Booking</span>
+                                }
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<HMS.Models.Staff> allDoctors = new();
+    private List<HMS.Models.Staff> filteredDoctors = new();
+    private List<HMS.Models.AppointmentSlot> allSlots = new();
+    private List<HMS.Models.Appointment> allAppointments = new();
+    private List<HMS.Models.Appointment> myAppointments = new();
+    private List<HMS.Models.Patient> allPatients = new();
+    private List<SlotViewModel> availableSlots = new();
+    private List<string> departments = new();
+
+    private string selectedDepartment = "";
+    private int selectedDoctorId = 0;
+    private DateTime selectedDate = DateTime.MinValue;
+    private bool showOnlyAvailable = true;
+
+    private bool loading = true;
+    private bool booking = false;
+    private bool showBookingModal = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private SlotViewModel? selectedSlot;
+    private BookingModel bookingModel = new();
+    private string currentUserEmail = "";
+    private string currentUserRole = "";
+    private int? currentPatientId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCurrentUser();
+        await LoadData();
+    }
+
+    private async Task LoadCurrentUser()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        currentUserEmail = user.Identity?.Name ?? "";
+
+        if (user.IsInRole("Admin"))
+            currentUserRole = "Admin";
+        else if (user.IsInRole("Staff"))
+            currentUserRole = "Staff";
+        else
+            currentUserRole = "Patient";
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            loading = true;
+            errorMessage = null;
+
+            var allStaff = await AdminService.GetAllStaffAsync();
+
+            allDoctors = allStaff.Where(s => !string.IsNullOrEmpty(s.Department) &&
+                                            (s.Department.Contains("Doctor", StringComparison.OrdinalIgnoreCase) ||
+                                             s.Department.Contains("Physician", StringComparison.OrdinalIgnoreCase) ||
+                                             s.Department.Contains("Cardiology", StringComparison.OrdinalIgnoreCase) ||
+                                             s.Department.Contains("Pediatrics", StringComparison.OrdinalIgnoreCase) ||
+                                             s.Department.Contains("Neurology", StringComparison.OrdinalIgnoreCase) ||
+                                             s.Department.Contains("Orthopedics", StringComparison.OrdinalIgnoreCase) ||
+                                             s.Department.Contains("Dermatology", StringComparison.OrdinalIgnoreCase) ||
+                                             s.Department.Contains("General", StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            departments = allDoctors
+                .Where(d => !string.IsNullOrEmpty(d.Department))
+                .Select(d => d.Department!)
+                .Distinct()
+                .OrderBy(d => d)
+                .ToList();
+
+            allSlots = await AdminService.GetAllAppointmentSlotsAsync();
+            allAppointments = await AdminService.GetAllAppointmentsAsync();
+            allPatients = await AdminService.GetAllPatientsAsync();
+
+            var currentPatient = allPatients.FirstOrDefault(p => p.User?.Email == currentUserEmail);
+            currentPatientId = currentPatient?.Id;
+
+            if (currentPatientId.HasValue)
+            {
+                myAppointments = allAppointments.Where(a => a.PatientId == currentPatientId.Value).ToList();
+            }
+
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading data: {ex.Message}";
+            Console.WriteLine($"Error in LoadData: {ex}");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        filteredDoctors = allDoctors.ToList();
+
+        if (!string.IsNullOrEmpty(selectedDepartment))
+        {
+            filteredDoctors = filteredDoctors.Where(d => d.Department == selectedDepartment).ToList();
+        }
+
+        if (selectedDoctorId > 0)
+        {
+            filteredDoctors = filteredDoctors.Where(d => d.Id == selectedDoctorId).ToList();
+        }
+
+        availableSlots = new List<SlotViewModel>();
+
+        var filteredSlots = allSlots.Where(s => s.Date.Date >= DateTime.Today).ToList();
+
+        if (filteredDoctors.Any())
+        {
+            filteredSlots = filteredSlots.Where(s => filteredDoctors.Any(d => d.Id == s.StaffId)).ToList();
+        }
+
+        foreach (var slot in filteredSlots)
+        {
+            var doctor = allDoctors.FirstOrDefault(d => d.Id == slot.StaffId);
+            if (doctor == null) continue;
+
+            var isAvailable = slot.Status == "Available" && slot.CurrentBookings < slot.MaxCapacity;
+
+            var slotViewModel = new SlotViewModel
+            {
+                SlotId = slot.Id,
+                StaffId = slot.StaffId,
+                DoctorName = $"{doctor.User?.FirstName ?? ""} {doctor.User?.LastName ?? ""}".Trim(),
+                Department = doctor.Department ?? "General",
+                Date = slot.Date.Date,
+                StartTime = slot.StartTime,
+                EndTime = slot.EndTime,
+                IsAvailable = isAvailable,
+                CurrentBookings = slot.CurrentBookings,
+                MaxCapacity = slot.MaxCapacity
+            };
+
+            availableSlots.Add(slotViewModel);
+        }
+
+        if (selectedDate != DateTime.MinValue)
+        {
+            availableSlots = availableSlots.Where(s => s.Date.Date == selectedDate.Date).ToList();
+        }
+
+        if (showOnlyAvailable)
+        {
+            availableSlots = availableSlots.Where(s => s.IsAvailable).ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    private List<HMS.Models.Staff> GetDoctorsList()
+    {
+        if (!string.IsNullOrEmpty(selectedDepartment))
+        {
+            return allDoctors.Where(d => d.Department == selectedDepartment).ToList();
+        }
+        return allDoctors;
+    }
+
+    private bool HasActiveFilters()
+    {
+        return !string.IsNullOrEmpty(selectedDepartment) ||
+               selectedDoctorId > 0 ||
+               selectedDate != DateTime.MinValue;
+    }
+
+    private void ClearFilters()
+    {
+        selectedDepartment = "";
+        selectedDoctorId = 0;
+        selectedDate = DateTime.MinValue;
+        showOnlyAvailable = true;
+        ApplyFilters();
+    }
+
+    private void SelectDate(DateTime date)
+    {
+        selectedDate = date;
+        ApplyFilters();
+    }
+
+    private void GoToToday()
+    {
+        selectedDate = DateTime.Today;
+        ApplyFilters();
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return "DR";
+
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+        return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpper();
+    }
+
+    private void ShowBookingModal(SlotViewModel slot)
+    {
+        selectedSlot = slot;
+        bookingModel = new BookingModel
+        {
+            SelectedPatientId = currentPatientId ?? 0,
+            Reason = "",
+            Notes = ""
+        };
+        showBookingModal = true;
+    }
+
+    private void CloseBookingModal()
+    {
+        showBookingModal = false;
+        selectedSlot = null;
+        bookingModel = new();
+    }
+
+    private async Task ConfirmBooking()
+    {
+        if (selectedSlot == null) return;
+
+        try
+        {
+            booking = true;
+            errorMessage = null;
+
+            int patientIdToBook;
+
+            if (currentUserRole == "Admin" || currentUserRole == "Staff")
+            {
+                if (bookingModel.SelectedPatientId == 0)
+                {
+                    errorMessage = "Please select a patient to book for.";
+                    booking = false;
+                    return;
+                }
+                patientIdToBook = bookingModel.SelectedPatientId;
+            }
+            else
+            {
+                if (!currentPatientId.HasValue)
+                {
+                    errorMessage = "Unable to identify your patient record. Please contact support.";
+                    booking = false;
+                    return;
+                }
+                patientIdToBook = currentPatientId.Value;
+            }
+
+            if (string.IsNullOrWhiteSpace(bookingModel.Reason))
+            {
+                errorMessage = "Please select a reason for the appointment.";
+                booking = false;
+                return;
+            }
+
+            var appointment = new HMS.Models.Appointment
+            {
+                PatientId = patientIdToBook,
+                StaffId = selectedSlot.StaffId,
+                AppointmentSlotId = selectedSlot.SlotId,
+                AppointmentDate = selectedSlot.Date.Add(selectedSlot.StartTime),
+                DurationMinutes = (int)(selectedSlot.EndTime - selectedSlot.StartTime).TotalMinutes,
+                Status = "Scheduled",
+                Reason = bookingModel.Reason,
+                Notes = bookingModel.Notes,
+                Price = 500.00m,
+                CreatedBy = currentUserEmail
+            };
+
+            await AdminService.CreateAppointmentAsync(appointment);
+            await AdminService.BookAppointmentSlotAsync(selectedSlot.SlotId);
+
+            var bookedPatient = allPatients.FirstOrDefault(p => p.Id == patientIdToBook);
+            var patientName = bookedPatient != null
+                ? $"{bookedPatient.User?.FirstName} {bookedPatient.User?.LastName}"
+                : "patient";
+
+            successMessage = $"Appointment confirmed for {patientName} with Dr. {selectedSlot.DoctorName} on {selectedSlot.Date:MMM dd, yyyy} at {selectedSlot.StartTime:hh\\:mm}";
+            CloseBookingModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error booking appointment: {ex.Message}";
+            Console.WriteLine($"Error in ConfirmBooking: {ex}");
+        }
+        finally
+        {
+            booking = false;
+        }
+    }
+
+    private class SlotViewModel
+    {
+        public int SlotId { get; set; }
+        public int StaffId { get; set; }
+        public string DoctorName { get; set; } = "";
+        public string Department { get; set; } = "";
+        public DateTime Date { get; set; }
+        public TimeSpan StartTime { get; set; }
+        public TimeSpan EndTime { get; set; }
+        public bool IsAvailable { get; set; }
+        public int CurrentBookings { get; set; }
+        public int MaxCapacity { get; set; }
+    }
+
+    private class BookingModel
+    {
+        public int SelectedPatientId { get; set; } = 0;
+        public string Reason { get; set; } = "";
+        public string? Notes { get; set; }
+    }
+}

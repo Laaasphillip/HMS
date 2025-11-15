@@ -64,6 +64,14 @@ builder.Services.AddAuthorizationCore(options =>
     options.AddPolicy("AdminOrPatient", policy =>
         policy.RequireRole("Admin", "Patient"));
 
+    // Patient policy
+    options.AddPolicy("PatientOnly", policy =>
+        policy.RequireRole("Patient"));
+
+    // Staff policy
+    options.AddPolicy("StaffOnly", policy =>
+        policy.RequireRole("Staff"));
+
     // All authenticated users (Admin, Staff, Patient)
     options.AddPolicy("Authenticated", policy =>
         policy.RequireAuthenticatedUser());
