@@ -146,12 +146,34 @@ namespace HMS.Services
                 _context.TimeReports.Add(timeReport);
                 await _context.SaveChangesAsync();
 
+                // Load navigation properties
+                await _context.Entry(timeReport)
+                    .Reference(tr => tr.Staff)
+                    .LoadAsync();
+
+                if (timeReport.Staff != null)
+                {
+                    await _context.Entry(timeReport.Staff)
+                        .Reference(s => s.User)
+                        .LoadAsync();
+                }
+                if (scheduleId.HasValue)
+                {
+                    await _context.Entry(timeReport)
+                        .Reference(tr => tr.Schedule)
+                        .LoadAsync();
+                }
+
+                return (true, "Time report created successfully", timeReport);
+            
 
             }
 
 
+        }
 
-        {
+
+
 
 
 
