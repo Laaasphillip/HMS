@@ -107,7 +107,7 @@ namespace HMS.Services
              string activityType,
              string notes ="")
         {
-            try 
+            try
             {
                 // Check authorization - Admin or Staff can create time reports
                 await EnsureAuthorizedAsync("AdminOrStaff", "create time report");
@@ -146,12 +146,101 @@ namespace HMS.Services
                 _context.TimeReports.Add(timeReport);
                 await _context.SaveChangesAsync();
 
+                // Load navigation properties
+                await _context.Entry(timeReport)
+                    .Reference(tr => tr.Staff)
+                    .LoadAsync();
 
+                if (timeReport.Staff != null)
+                {
+                    await _context.Entry(timeReport.Staff)
+                        .Reference(s => s.User)
+                        .LoadAsync();
+                }
+                if (scheduleId.HasValue)
+                {
+                    await _context.Entry(timeReport)
+                        .Reference(tr => tr.Schedule)
+                        .LoadAsync();
+                }
+
+                return (true, "Time report created successfully", timeReport);
+                catch (UnauthorizedAccessException ex)
+            {
+                return (false, $"Access Denied: {ex.Message}", null);
             }
+            catch (Exception ex)
+            {
+                return (false, $"Error creating time report: {ex.Message}", null);
+            }
+        }
 
-
-
+        public async Task<(bool Success, string Message)> UpdateTimeReportAsync(TimeReport timeReport)
         {
+            try
+            {
+                // Check authorization - Admin or Staff can update time reports
+                await EnsureAuthorizedAsync("AdminOrStaff", "update time report");
+
+                // Validate that the time report exists
+                var existingReport = await _context.TimeReports.FindAsync(timeReport.Id);
+                if (existingReport == null)
+                    return (false, "Time report not found");
+
+                // Validate that the staff member exists
+                var staffExists = await _context.Staff.AnyAsync(s => s.Id == timeReport.StaffId);
+                if (!staffExists)
+                    return (false, "Staff member not found");
+
+                // Validate schedule if provided
+                if (timeReport.ScheduleId.HasValue)
+                {
+                    var scheduleExists = await _context.Schedules.AnyAsync(s => s.Id == timeReport.ScheduleId.Value);
+                    if (!scheduleExists)
+                        return (false, "Schedule not found");
+                }
+
+                // Recalculate hours worked 
+                if (timeReport.ClockOut.HasValue)
+                {
+                    var duration = timeReport.ClockOut.Value - timeReport.ClockIn;
+                    timeReport.HoursWorked = (decimal)duration.TotalHours;
+                }
+                else
+                {
+                    timeReport.HoursWorked = 0;
+                }
+
+                // Update the time report
+                existingReport.StaffId = timeReport.StaffId;
+                existingReport.ScheduleId = timeReport.ScheduleId;
+                existingReport.ClockIn = timeReport.ClockIn;
+                existingReport.ClockOut = timeReport.ClockOut;
+                existingReport.HoursWorked = timeReport.HoursWorked;
+                existingReport.ActivityType = timeReport.ActivityType;
+                existingReport.Notes = timeReport.Notes;
+
+                _context.TimeReports.Update(existingReport);
+                await _context.SaveChangesAsync();
+
+                return (true, "Time report updated successfully");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return (false, $"Access Denied: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Error updating time report: {ex.Message}");
+            }
+        }
+    
+
+
+        
+
+
+
 
 
 
