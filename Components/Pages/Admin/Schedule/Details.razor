@@ -1,4 +1,4 @@
-﻿@page "/admin/schedule/details/{ScheduleId:int}"
+﻿@page "/schedule/details/{ScheduleId:int}"
 @using HMS.Data
 @using HMS.Models
 @using HMS.Services
@@ -21,9 +21,11 @@
                         Schedule Details #@ScheduleId
                     </h4>
                     <div>
-                        <button class="btn btn-light btn-sm me-2" @onclick="EditSchedule">
-                            <i class="bi bi-pencil me-1"></i> Edit
-                        </button>
+                        <AuthorizeView Policy="AdminOnly">
+                            <button class="btn btn-light btn-sm me-2" @onclick="EditSchedule">
+                                <i class="bi bi-pencil me-1"></i> Edit
+                            </button>
+                        </AuthorizeView>
                         <button class="btn btn-outline-light btn-sm" @onclick="BackToList">
                             <i class="bi bi-arrow-left me-1"></i> Back
                         </button>
@@ -40,16 +42,66 @@
                     }
                     else if (!string.IsNullOrEmpty(errorMessage))
                     {
-                        <div class="alert alert-danger" role="alert">
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
                             <i class="bi bi-exclamation-triangle me-2"></i>
                             @errorMessage
+                            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
                         </div>
-                        <button class="btn btn-secondary" @onclick="BackToList">
-                            <i class="bi bi-arrow-left me-1"></i> Back to List
-                        </button>
                     }
-                    else if (schedule != null)
+
+                    @if (!string.IsNullOrEmpty(successMessage))
                     {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle me-2"></i>
+                            @successMessage
+                            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+                        </div>
+                    }
+
+                    @if (schedule != null)
+                    {
+                        <!-- Slot Generation Status Alert -->
+                        @if (schedule.SlotsGenerated)
+                        {
+                            <div class="alert alert-success mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="bi bi-check-circle-fill me-2"></i>
+                                        <strong>Slots Generated:</strong> Appointment slots have been generated for this schedule.
+                                        @if (generatedSlotsCount > 0)
+                                        {
+                                            <span class="badge bg-success ms-2">@generatedSlotsCount slots</span>
+                                        }
+                                    </div>
+                                    <button class="btn btn-sm btn-warning" @onclick="RegenerateSlots" disabled="@isGenerating">
+                                        @if (isGenerating)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                        }
+                                        <i class="bi bi-arrow-clockwise me-1"></i> Regenerate
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        <strong>Slots Not Generated:</strong> Appointment slots have not been created yet for this schedule.
+                                    </div>
+                                    <button class="btn btn-sm btn-success" @onclick="GenerateSlots" disabled="@isGenerating">
+                                        @if (isGenerating)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                        }
+                                        <i class="bi bi-calendar-plus me-1"></i> Generate Slots
+                                    </button>
+                                </div>
+                            </div>
+                        }
+
                         <!-- Schedule Overview -->
                         <div class="row mb-4">
                             <div class="col-md-6">
@@ -68,6 +120,10 @@
                                             <strong>@GetStaffFullName(schedule.Staff)</strong>
                                             <br />
                                             <small class="text-muted">
+                                                @if (!string.IsNullOrEmpty(schedule.Staff.Department))
+                                                {
+                                                    <span>@schedule.Staff.Department</span>
+                                                }
                                                 @if (!string.IsNullOrEmpty(schedule.Staff.Specialization))
                                                 {
                                                     <span> - @schedule.Staff.Specialization</span>
@@ -85,7 +141,7 @@
                                     <label class="fw-bold text-muted small">Date</label>
                                     <p class="mb-0">
                                         <i class="bi bi-calendar3 me-2"></i>
-                                        @schedule.StartTime.ToString("dddd, MMMM dd, yyyy")
+                                        @schedule.Date.ToString("dddd, MMMM dd, yyyy")
                                     </p>
                                 </div>
 
@@ -111,24 +167,6 @@
                                         </span>
                                     </p>
                                 </div>
-
-                                <div class="mb-3">
-                                    <label class="fw-bold text-muted small">Availability</label>
-                                    <p class="mb-0">
-                                        @if (schedule.IsAvailable)
-                                        {
-                                            <span class="badge bg-success">
-                                                <i class="bi bi-check-circle me-1"></i>Available for Appointments
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-secondary">
-                                                <i class="bi bi-x-circle me-1"></i>Not Available
-                                            </span>
-                                        }
-                                    </p>
-                                </div>
                             </div>
 
                             <div class="col-md-6">
@@ -138,7 +176,7 @@
                                     <label class="fw-bold text-muted small">Start Time</label>
                                     <p class="mb-0">
                                         <i class="bi bi-clock me-2"></i>
-                                        @schedule.StartTime.ToString("HH:mm")
+                                        @schedule.StartTime.ToString(@"hh\:mm")
                                     </p>
                                 </div>
 
@@ -146,7 +184,7 @@
                                     <label class="fw-bold text-muted small">End Time</label>
                                     <p class="mb-0">
                                         <i class="bi bi-clock me-2"></i>
-                                        @schedule.EndTime.ToString("HH:mm")
+                                        @schedule.EndTime.ToString(@"hh\:mm")
                                     </p>
                                 </div>
 
@@ -162,31 +200,115 @@
 
                                 <h6 class="text-muted mb-3">Break Time</h6>
 
-                                <div class="mb-3">
-                                    <label class="fw-bold text-muted small">Break Start</label>
-                                    <p class="mb-0">
-                                        <i class="bi bi-cup-hot me-2"></i>
-                                        @schedule.BreakStart.ToString("HH:mm")
-                                    </p>
-                                </div>
+                                @if (schedule.BreakStart.HasValue && schedule.BreakEnd.HasValue)
+                                {
+                                    <div class="mb-3">
+                                        <label class="fw-bold text-muted small">Break Start</label>
+                                        <p class="mb-0">
+                                            <i class="bi bi-cup-hot me-2"></i>
+                                            @schedule.BreakStart.Value.ToString(@"hh\:mm")
+                                        </p>
+                                    </div>
 
-                                <div class="mb-3">
-                                    <label class="fw-bold text-muted small">Break End</label>
-                                    <p class="mb-0">
-                                        <i class="bi bi-cup-hot me-2"></i>
-                                        @schedule.BreakEnd.ToString("HH:mm")
-                                    </p>
-                                </div>
+                                    <div class="mb-3">
+                                        <label class="fw-bold text-muted small">Break End</label>
+                                        <p class="mb-0">
+                                            <i class="bi bi-cup-hot me-2"></i>
+                                            @schedule.BreakEnd.Value.ToString(@"hh\:mm")
+                                        </p>
+                                    </div>
 
-                                <div class="mb-3">
-                                    <label class="fw-bold text-muted small">Break Duration</label>
-                                    <p class="mb-0">
-                                        <i class="bi bi-hourglass-split me-2"></i>
-                                        @CalculateDuration(schedule.BreakStart, schedule.BreakEnd) hours
-                                    </p>
-                                </div>
+                                    <div class="mb-3">
+                                        <label class="fw-bold text-muted small">Break Duration</label>
+                                        <p class="mb-0">
+                                            <i class="bi bi-hourglass-split me-2"></i>
+                                            @CalculateDuration(schedule.BreakStart.Value, schedule.BreakEnd.Value) hours
+                                        </p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="text-muted">No break time scheduled</p>
+                                }
                             </div>
                         </div>
+
+                        <!-- Appointment Slots Summary -->
+                        @if (appointmentSlots.Any())
+                        {
+                            <hr />
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h5 class="text-muted mb-3">
+                                        <i class="bi bi-calendar2-week me-2"></i>
+                                        Appointment Slots (@appointmentSlots.Count)
+                                    </h5>
+
+                                    <div class="row mb-3">
+                                        <div class="col-md-3">
+                                            <div class="card bg-success bg-opacity-10 border-success">
+                                                <div class="card-body text-center p-2">
+                                                    <h4 class="mb-0">@appointmentSlots.Count(s => s.Status == "Available")</h4>
+                                                    <small>Available</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-primary bg-opacity-10 border-primary">
+                                                <div class="card-body text-center p-2">
+                                                    <h4 class="mb-0">@appointmentSlots.Count(s => s.Status == "Booked")</h4>
+                                                    <small>Booked</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-warning bg-opacity-10 border-warning">
+                                                <div class="card-body text-center p-2">
+                                                    <h4 class="mb-0">@appointmentSlots.Count(s => s.Status == "Blocked")</h4>
+                                                    <small>Blocked</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-info bg-opacity-10 border-info">
+                                                <div class="card-body text-center p-2">
+                                                    <h4 class="mb-0">@appointmentSlots.Sum(s => s.CurrentBookings)</h4>
+                                                    <small>Total Bookings</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Time</th>
+                                                    <th>Status</th>
+                                                    <th>Bookings</th>
+                                                    <th>Capacity</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var slot in appointmentSlots.OrderBy(s => s.StartTime))
+                                                {
+                                                    <tr>
+                                                        <td>@slot.StartTime.ToString(@"hh\:mm") - @slot.EndTime.ToString(@"hh\:mm")</td>
+                                                        <td>
+                                                            <span class="badge bg-@GetSlotStatusColor(slot.Status)">
+                                                                @slot.Status
+                                                            </span>
+                                                        </td>
+                                                        <td>@slot.CurrentBookings</td>
+                                                        <td>@slot.MaxCapacity</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        }
 
                         <hr />
 
@@ -202,17 +324,14 @@
                                 </div>
                             </div>
 
-                            @if (schedule.Appointment != null)
+                            @if (schedule.UpdatedAt.HasValue)
                             {
-                                <div class="col-md-12 mt-3">
-                                    <div class="alert alert-info">
-                                        <h6 class="alert-heading">
-                                            <i class="bi bi-calendar-event me-2"></i>
-                                            Associated Appointment
-                                        </h6>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="fw-bold text-muted small">Last Updated</label>
                                         <p class="mb-0">
-                                            This schedule has an associated appointment.
-                                            <a href="/admin/appointment/details/@schedule.Appointment.Id" class="alert-link">View Appointment Details</a>
+                                            <i class="bi bi-clock-history me-2"></i>
+                                            @schedule.UpdatedAt.Value.ToString("yyyy-MM-dd HH:mm")
                                         </p>
                                     </div>
                                 </div>
@@ -236,12 +355,34 @@
 
                         <!-- Action Buttons -->
                         <div class="d-flex gap-2 mt-4">
-                            <button class="btn btn-primary" @onclick="EditSchedule">
-                                <i class="bi bi-pencil me-1"></i> Edit Schedule
-                            </button>
-                            <button class="btn btn-danger" @onclick="DeleteSchedule">
-                                <i class="bi bi-trash me-1"></i> Delete Schedule
-                            </button>
+                            @if (!schedule.SlotsGenerated)
+                            {
+                                <button class="btn btn-success" @onclick="GenerateSlots" disabled="@isGenerating">
+                                    @if (isGenerating)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                    }
+                                    <i class="bi bi-calendar-plus me-1"></i> Generate Slots
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-warning" @onclick="RegenerateSlots" disabled="@isGenerating">
+                                    @if (isGenerating)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                    }
+                                    <i class="bi bi-arrow-clockwise me-1"></i> Regenerate Slots
+                                </button>
+                            }
+                            <AuthorizeView Policy="AdminOnly">
+                                <button class="btn btn-primary" @onclick="EditSchedule">
+                                    <i class="bi bi-pencil me-1"></i> Edit Schedule
+                                </button>
+                                <button class="btn btn-danger" @onclick="DeleteSchedule">
+                                    <i class="bi bi-trash me-1"></i> Delete Schedule
+                                </button>
+                            </AuthorizeView>
                             <button class="btn btn-secondary ms-auto" @onclick="BackToList">
                                 <i class="bi bi-arrow-left me-1"></i> Back to List
                             </button>
@@ -258,8 +399,13 @@
     public int ScheduleId { get; set; }
 
     private Schedule? schedule;
+    private List<AppointmentSlot> appointmentSlots = new();
+    private int generatedSlotsCount = 0;
+
     private bool isLoading = true;
+    private bool isGenerating = false;
     private string? errorMessage;
+    private string? successMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -279,6 +425,16 @@
             {
                 errorMessage = "Schedule not found";
             }
+            else
+            {
+                // Load appointment slots for this schedule
+                appointmentSlots = await AdminService.GetAllAppointmentSlotsAsync();
+                appointmentSlots = appointmentSlots
+                    .Where(s => s.ScheduleId == ScheduleId)
+                    .ToList();
+
+                generatedSlotsCount = appointmentSlots.Count;
+            }
         }
         catch (Exception ex)
         {
@@ -288,6 +444,66 @@
         finally
         {
             isLoading = false;
+        }
+    }
+
+    private async Task GenerateSlots()
+    {
+        if (schedule == null) return;
+
+        try
+        {
+            isGenerating = true;
+            errorMessage = null;
+            successMessage = null;
+
+            var generatedSlots = await AdminService.GenerateSlotsForScheduleAsync(ScheduleId);
+
+            successMessage = $"Successfully generated {generatedSlots.Count} appointment slots for this schedule!";
+
+            // Reload to get updated data
+            await LoadScheduleAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error generating slots: {ex.Message}";
+            Console.WriteLine($"Error in GenerateSlots: {ex}");
+        }
+        finally
+        {
+            isGenerating = false;
+        }
+    }
+
+    private async Task RegenerateSlots()
+    {
+        if (schedule == null) return;
+
+        try
+        {
+            isGenerating = true;
+            errorMessage = null;
+            successMessage = null;
+
+            var generatedSlots = await AdminService.RegenerateSlotsForScheduleAsync(ScheduleId);
+
+            successMessage = $"Successfully regenerated {generatedSlots.Count} appointment slots for this schedule!";
+
+            // Reload to get updated data
+            await LoadScheduleAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error regenerating slots: {ex.Message}";
+            Console.WriteLine($"Error in RegenerateSlots: {ex}");
+        }
+        finally
+        {
+            isGenerating = false;
         }
     }
 
@@ -306,57 +522,58 @@
     {
         return status?.ToLower() switch
         {
-            "available" => "bg-success",
-            "booked" => "bg-primary",
-            "blocked" => "bg-warning text-dark",
-            "completed" => "bg-info",
+            "scheduled" => "bg-primary",
+            "active" => "bg-success",
+            "completed" => "bg-secondary",
             "cancelled" => "bg-danger",
             _ => "bg-secondary"
         };
     }
 
-    private double CalculateDuration(DateTime start, DateTime end)
+    private string GetSlotStatusColor(string? status)
     {
-        return (end - start).TotalHours;
+        return status?.ToLower() switch
+        {
+            "available" => "success",
+            "booked" => "primary",
+            "blocked" => "warning",
+            "cancelled" => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private double CalculateDuration(TimeSpan start, TimeSpan end)
+    {
+        return Math.Round((end - start).TotalHours, 2);
     }
 
     private void EditSchedule()
     {
-        Navigation.NavigateTo($"/admin/schedule/edit/{ScheduleId}");
+        NavigationManager.NavigateTo($"/schedule/edit/{ScheduleId}");
     }
 
     private async Task DeleteSchedule()
     {
-        // In a real app, show a confirmation dialog
-        if (confirm("Are you sure you want to delete this schedule?"))
+        try
         {
-            try
+            var success = await AdminService.DeleteScheduleAsync(ScheduleId);
+            if (success)
             {
-                var success = await AdminService.DeleteScheduleAsync(ScheduleId);
-                if (success)
-                {
-                    Navigation.NavigateTo("/admin/schedules");
-                }
-                else
-                {
-                    errorMessage = "Failed to delete schedule";
-                }
+                NavigationManager.NavigateTo("/admin/schedules");
             }
-            catch (Exception ex)
+            else
             {
-                errorMessage = $"Error deleting schedule: {ex.Message}";
+                errorMessage = "Failed to delete schedule";
             }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting schedule: {ex.Message}";
         }
     }
 
     private void BackToList()
     {
-        Navigation.NavigateTo("/admin/schedules");
-    }
-
-    private bool confirm(string message)
-    {
-        // In a real app, use a proper modal/dialog component
-        return true; // Simplified for now
+        NavigationManager.NavigateTo("/schedules");
     }
 }

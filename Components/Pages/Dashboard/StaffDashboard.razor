@@ -1,0 +1,406 @@
+﻿@page "/dashboard/staff"
+@using HMS.Services
+@using HMS.Models
+@using Microsoft.AspNetCore.Authorization
+@inject AdminService AdminService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "AdminOrStaff")]
+
+<PageTitle>Staff Dashboard</PageTitle>
+
+<div class="container-fluid py-4">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-1">Welcome, Dr. @lastName! 👨‍⚕️</h2>
+            <p class="text-muted">@currentStaff?.Department • @currentStaff?.Specialization</p>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    else
+    {
+        <!-- Quick Stats -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-calendar-day text-primary" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Today's Appointments</h6>
+                                <h3 class="mb-0">@todayAppointments.Count</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-success bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-people text-success" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Total Patients</h6>
+                                <h3 class="mb-0">@totalPatients</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-info bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-calendar-week text-info" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">This Week</h6>
+                                <h3 class="mb-0">@thisWeekAppointments.Count</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-warning bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-clock-history text-warning" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Hours This Week</h6>
+                                <h3 class="mb-0">@totalHoursThisWeek</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Left Column -->
+            <div class="col-lg-8">
+                <!-- Today's Schedule -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="bi bi-calendar-check text-primary me-2"></i>Today's Schedule</h5>
+                            <span class="badge bg-primary">@DateTime.Today.ToString("MMM dd, yyyy")</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        @if (todayAppointments.Any())
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var appointment in todayAppointments.OrderBy(a => a.AppointmentSlot.StartTime))
+                                {
+                                    <div class="list-group-item px-0 py-3">
+                                        <div class="d-flex">
+                                            <div class="flex-shrink-0 text-center me-3" style="width: 80px;">
+                                                <div class="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
+                                                    @appointment.AppointmentSlot.StartTime.ToString(@"hh\:mm")
+                                                </div>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6 class="mb-1">@appointment.Patient?.User?.FirstName @appointment.Patient?.User?.LastName</h6>
+                                                        <p class="mb-1 text-muted small">
+                                                            <i class="bi bi-clock me-1"></i>@appointment.AppointmentSlot.StartTime.ToString(@"hh\:mm") - @appointment.AppointmentSlot.EndTime.ToString(@"hh\:mm")
+                                                        </p>
+                                                        @if (!string.IsNullOrEmpty(appointment.Patient?.Contact))
+                                                        {
+                                                            <p class="mb-0 text-muted small">
+                                                                <i class="bi bi-telephone me-1"></i>@appointment.Patient?.Contact
+                                                            </p>
+                                                        }
+                                                    </div>
+                                                    <span class="badge bg-@GetStatusColor(appointment.Status)">@appointment.Status</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-5">
+                                <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
+                                <p class="text-muted mt-3">No appointments scheduled for today</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Upcoming This Week -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0"><i class="bi bi-calendar-week text-primary me-2"></i>This Week's Appointments</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (thisWeekAppointments.Any())
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var appointment in thisWeekAppointments.Take(5))
+                                {
+                                    <div class="list-group-item px-0 py-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1">@appointment.Patient?.User?.FirstName @appointment.Patient?.User?.LastName</h6>
+                                                <p class="mb-0 text-muted small">
+                                                    <i class="bi bi-calendar3 me-1"></i>@appointment.AppointmentDate.ToString("ddd, MMM dd") at @appointment.AppointmentSlot.StartTime.ToString(@"hh\:mm")
+                                                </p>
+                                            </div>
+                                            <span class="badge bg-@GetStatusColor(appointment.Status)">@appointment.Status</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                            @if (thisWeekAppointments.Count > 5)
+                            {
+                                <div class="text-center mt-3">
+                                    <button class="btn btn-sm btn-outline-primary" @onclick='() => NavigationManager.NavigateTo("/appointments")'>
+                                        View All (@thisWeekAppointments.Count total)
+                                    </button>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <i class="bi bi-calendar-x text-muted" style="font-size: 2rem;"></i>
+                                <p class="text-muted mt-2 mb-0">No appointments this week</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="col-lg-4">
+                <!-- Quick Actions -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0"><i class="bi bi-lightning-fill text-primary me-2"></i>Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" @onclick='() => NavigationManager.NavigateTo("/appointments")'>
+                                <i class="bi bi-calendar-check me-2"></i>View All Appointments
+                            </button>
+                            <button class="btn btn-outline-primary" @onclick='() => NavigationManager.NavigateTo("/patients")'>
+                                <i class="bi bi-people me-2"></i>View Patients
+                            </button>
+                            <button class="btn btn-outline-primary" @onclick='() => NavigationManager.NavigateTo("/schedules")'>
+                                <i class="bi bi-calendar3 me-2"></i>My Schedule
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- My Info -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0"><i class="bi bi-person-badge text-primary me-2"></i>My Information</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (currentStaff != null)
+                        {
+                            <div class="mb-3">
+                                <small class="text-muted d-block">Name</small>
+                                <p class="mb-0">@currentStaff.User?.FirstName @currentStaff.User?.LastName</p>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted d-block">Department</small>
+                                <p class="mb-0">@currentStaff.Department</p>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted d-block">Specialization</small>
+                                <p class="mb-0">@currentStaff.Specialization</p>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted d-block">Contract Type</small>
+                                <p class="mb-0">@currentStaff.ContractForm</p>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted d-block">Vacation Days Remaining</small>
+                                <p class="mb-0">@currentStaff.Vacationdays days</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Recent Patients -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Recent Patients</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (recentPatients.Any())
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var patient in recentPatients.Take(5))
+                                {
+                                    <div class="list-group-item px-0 py-2">
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-2">
+                                                <i class="bi bi-person text-primary"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-0 small">@patient.User?.FirstName @patient.User?.LastName</h6>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center mb-0 py-3 small">No recent patients</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private string? errorMessage;
+    private string lastName = "Staff";
+    private Staff? currentStaff;
+
+    private List<Appointment> todayAppointments = new();
+    private List<Appointment> thisWeekAppointments = new();
+    private List<Patient> recentPatients = new();
+    private int totalPatients = 0;
+    private int totalHoursThisWeek = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                // Get current staff
+                var allStaff = await AdminService.GetAllStaffAsync();
+                currentStaff = allStaff.FirstOrDefault(s => s.UserId == userId);
+
+                if (currentStaff != null)
+                {
+                    lastName = currentStaff.User?.LastName ?? "Staff";
+
+                    // Get appointments
+                    var allAppointments = await AdminService.GetAppointmentsByStaffIdAsync(currentStaff.Id);
+
+                    todayAppointments = allAppointments
+                        .Where(a => a.AppointmentDate.Date == DateTime.Today &&
+                                   (a.Status != "Cancelled"))
+                        .ToList();
+
+                    var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek);
+                    var weekEnd = weekStart.AddDays(7);
+
+                    thisWeekAppointments = allAppointments
+                        .Where(a => a.AppointmentDate.Date >= weekStart &&
+                                   a.AppointmentDate.Date < weekEnd &&
+                                   a.AppointmentDate.Date > DateTime.Today &&
+                                   (a.Status != "Cancelled"))
+                        .OrderBy(a => a.AppointmentDate)
+                        .ThenBy(a => a.AppointmentSlot.StartTime)
+                        .ToList();
+
+                    // Get unique patients
+                    var patientIds = allAppointments
+                        .Where(a => a.Status == "Completed")
+                        .Select(a => a.PatientId)
+                        .Distinct()
+                        .ToList();
+
+                    totalPatients = patientIds.Count;
+
+                    // Get recent patients (last 30 days)
+                    var recentAppointments = allAppointments
+                        .Where(a => a.AppointmentDate >= DateTime.Today.AddDays(-30) &&
+                                   a.Status == "Completed")
+                        .OrderByDescending(a => a.AppointmentDate)
+                        .ToList();
+
+                    recentPatients = recentAppointments
+                        .Where(a => a.Patient != null)
+                        .Select(a => a.Patient!)
+                        .DistinctBy(p => p.Id)
+                        .ToList();
+
+                    // Calculate hours (simplified - assuming 1 hour per appointment)
+                    totalHoursThisWeek = allAppointments
+                        .Where(a => a.AppointmentDate.Date >= weekStart &&
+                                   a.AppointmentDate.Date < weekEnd &&
+                                   a.Status == "Completed")
+                        .Count();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading dashboard: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Scheduled" => "primary",
+            "Confirmed" => "success",
+            "Completed" => "secondary",
+            "Cancelled" => "danger",
+            _ => "secondary"
+        };
+    }
+}

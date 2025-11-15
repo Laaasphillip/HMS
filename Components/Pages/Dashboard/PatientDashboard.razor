@@ -1,0 +1,308 @@
+﻿@page "/dashboard/patient"
+@using HMS.Services
+@using HMS.Models
+@using Microsoft.AspNetCore.Authorization
+@inject AdminService AdminService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "Authenticated")]
+
+<PageTitle>My Dashboard</PageTitle>
+
+<div class="container-fluid py-4">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-1">Welcome back, @firstName! 👋</h2>
+            <p class="text-muted">Here's your health overview today</p>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    else
+    {
+        <!-- Quick Stats -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-calendar-check text-primary" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Upcoming Appointments</h6>
+                                <h3 class="mb-0">@upcomingAppointments.Count</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-success bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Completed Visits</h6>
+                                <h3 class="mb-0">@completedAppointments.Count</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-warning bg-opacity-10 rounded-3 p-3">
+                                    <i class="bi bi-receipt text-warning" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Pending Payments</h6>
+                                <h3 class="mb-0">@pendingInvoices.Count</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Left Column -->
+            <div class="col-lg-8">
+                <!-- Quick Actions -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0"><i class="bi bi-lightning-fill text-primary me-2"></i>Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-sm-6">
+                                <button class="btn btn-primary btn-lg w-100" @onclick='() => NavigationManager.NavigateTo("/book-appointment")'>
+                                    <i class="bi bi-calendar-plus me-2"></i>Book Appointment
+                                </button>
+                            </div>
+                            <div class="col-sm-6">
+                                <button class="btn btn-outline-primary btn-lg w-100" @onclick='() => NavigationManager.NavigateTo("/appointments")'>
+                                    <i class="bi bi-calendar-check me-2"></i>My Appointments
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upcoming Appointments -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="bi bi-calendar-event text-primary me-2"></i>Upcoming Appointments</h5>
+                            <a href="/appointments" class="btn btn-sm btn-outline-primary">View All</a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        @if (upcomingAppointments.Any())
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var appointment in upcomingAppointments.Take(5))
+                                {
+                                    <div class="list-group-item px-0 py-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
+                                                        <i class="bi bi-calendar3 text-primary"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h6 class="mb-0">@appointment.AppointmentDate.ToString("MMMM dd, yyyy")</h6>
+                                                        <small class="text-muted">@appointment.AppointmentSlot?.StartTime.ToString(@"hh\:mm") - @appointment.AppointmentSlot?.EndTime.ToString(@"hh\:mm")</small>
+                                                    </div>
+                                                </div>
+                                                <div class="ms-5 ps-2">
+                                                    <p class="mb-1"><strong>Doctor:</strong> @appointment.Staff?.User?.FirstName @appointment.Staff?.User?.LastName</p>
+                                                    <p class="mb-1"><strong>Department:</strong> @appointment.Staff?.Department</p>
+                                                    <span class="badge bg-@GetStatusColor(appointment.Status)">@appointment.Status</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-5">
+                                <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
+                                <p class="text-muted mt-3">No upcoming appointments</p>
+                                <button class="btn btn-primary mt-2" @onclick='() => NavigationManager.NavigateTo("/book-appointment")'>
+                                    Book Your First Appointment
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="col-lg-4">
+                <!-- Patient Info -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0"><i class="bi bi-person-circle text-primary me-2"></i>My Information</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (currentPatient != null)
+                        {
+                            <div class="mb-3">
+                                <small class="text-muted d-block">Full Name</small>
+                                <p class="mb-0">@currentPatient.User?.FirstName @currentPatient.User?.LastName</p>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted d-block">Date of Birth</small>
+                                <p class="mb-0">@currentPatient.Dateofbirth.ToString("MMMM dd, yyyy")</p>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted d-block">Blood Group</small>
+                                <p class="mb-0">@currentPatient.BloodGroup</p>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted d-block">Contact</small>
+                                <p class="mb-0">@currentPatient.Contact</p>
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-outline-primary w-100" @onclick='() => NavigationManager.NavigateTo("/profile")'>
+                                    <i class="bi bi-pencil me-2"></i>Update Profile
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Pending Invoices -->
+                @if (pendingInvoices.Any())
+                {
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-warning bg-opacity-10 border-0 py-3">
+                            <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Pending Payments</h5>
+                        </div>
+                        <div class="card-body">
+                            @foreach (var invoice in pendingInvoices.Take(3))
+                            {
+                                <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                                    <div>
+                                        <h6 class="mb-1">Invoice #@invoice.Id</h6>
+                                        <small class="text-muted">@invoice.CreatedAt.ToString("MMM dd, yyyy")</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <h6 class="mb-1">@invoice.TotalAmount.ToString("C")</h6>
+                                        <span class="badge bg-warning">Pending</span>
+                                    </div>
+                                </div>
+                            }
+                            <button class="btn btn-warning w-100 mt-2" @onclick='() => NavigationManager.NavigateTo("/invoice")'>
+                                View All Invoices
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private string? errorMessage;
+    private string firstName = "Patient";
+    private Patient? currentPatient;
+
+    private List<Appointment> upcomingAppointments = new();
+    private List<Appointment> completedAppointments = new();
+    private List<Invoice> pendingInvoices = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                firstName = user.Identity.Name ?? "Patient";
+                var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                // Get current patient
+                var allPatients = await AdminService.GetAllPatientsAsync();
+                currentPatient = allPatients.FirstOrDefault(p => p.UserId == userId);
+
+                if (currentPatient != null)
+                {
+                    // Get appointments
+                    var allAppointments = await AdminService.GetAppointmentsByPatientIdAsync(currentPatient.Id);
+                    upcomingAppointments = allAppointments
+                        .Where(a => a.AppointmentDate >= DateTime.Today &&
+                                   (a.Status == "Scheduled" || a.Status == "Confirmed"))
+                        .OrderBy(a => a.AppointmentDate)
+                        .ThenBy(a => a.AppointmentSlot.StartTime)
+                        .ToList();
+
+                    completedAppointments = allAppointments
+                        .Where(a => a.Status == "Completed")
+                        .ToList();
+
+                    // Get pending invoices
+                    pendingInvoices = currentPatient.Invoices?
+                        .Where(i => i.Status == "Pending")
+                        .OrderByDescending(i => i.CreatedAt)
+                        .ToList() ?? new List<Invoice>();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading dashboard: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Scheduled" => "primary",
+            "Confirmed" => "success",
+            "Completed" => "secondary",
+            "Cancelled" => "danger",
+            _ => "secondary"
+        };
+    }
+}

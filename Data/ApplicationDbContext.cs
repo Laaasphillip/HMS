@@ -19,14 +19,28 @@ namespace HMS.Data
         public DbSet<Appointment> Appointments { get; set; }
         //public DbSet<Leave> Leaves { get; set; }
 
+        // New appointment booking system models
+        public DbSet<AppointmentSlot> AppointmentSlots { get; set; }
+        public DbSet<AppointmentSlotConfiguration> AppointmentSlotConfigurations { get; set; }
+        public DbSet<AppointmentBlock> AppointmentBlocks { get; set; }
+
+        [Obsolete]
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
-            // ApplicationUser Configuration
 
             // PATIENT
             builder.Entity<Patient>(entity =>
             {
+                entity.Property(e => e.UserId).IsRequired();
+                entity.Property(e => e.BloodGroup).IsRequired().HasMaxLength(10);
+                entity.Property(e => e.Dateofbirth).IsRequired();
+
+                entity.Property(e => e.Address).IsRequired(false);
+                entity.Property(e => e.Contact).IsRequired(false);
+                entity.Property(e => e.Preferences).IsRequired(false);
+                entity.Property(e => e.Interests).IsRequired(false);
+
                 entity.HasOne(e => e.User)
                     .WithOne(c => c.Patient)
                     .HasForeignKey<Patient>(e => e.UserId)
@@ -36,6 +50,16 @@ namespace HMS.Data
             // STAFF
             builder.Entity<Staff>(entity =>
             {
+                entity.Property(e => e.UserId).IsRequired();
+                entity.Property(e => e.ContractForm).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Department).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.HiredDate).IsRequired();
+                entity.Property(e => e.Taxes).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.HourlyRate).HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.Bankdetails).IsRequired(false);
+                entity.Property(e => e.Specialization).IsRequired(false).HasMaxLength(100);
+
                 entity.HasOne(e => e.User)
                     .WithOne(c => c.Staff)
                     .HasForeignKey<Staff>(e => e.UserId)
@@ -45,6 +69,13 @@ namespace HMS.Data
             // APPOINTMENT
             builder.Entity<Appointment>(entity =>
             {
+                entity.Property(e => e.ScheduleId).IsRequired(false);
+                entity.Property(e => e.AppointmentSlotId).IsRequired(false);
+                entity.Property(e => e.Notes).IsRequired(false);
+                entity.Property(e => e.CreatedBy).IsRequired(false);
+                entity.Property(e => e.ConfirmedAt).IsRequired(false);
+                entity.Property(e => e.CompletedAt).IsRequired(false);
+
                 entity.HasOne(e => e.Patient)
                     .WithMany(c => c.Appointments)
                     .HasForeignKey(e => e.PatientId)
@@ -58,12 +89,22 @@ namespace HMS.Data
                 entity.HasOne(e => e.Schedule)
                     .WithOne(c => c.Appointment)
                     .HasForeignKey<Appointment>(e => e.ScheduleId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired(false);
+
+                entity.HasOne(e => e.AppointmentSlot)
+                    .WithMany(s => s.Appointments)
+                    .HasForeignKey(e => e.AppointmentSlotId)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired(false);
             });
 
             // SCHEDULE
             builder.Entity<Schedule>(entity =>
             {
+                entity.Property(e => e.Notes).IsRequired(false);
+                entity.Property(e => e.UpdatedAt).IsRequired(false);
+
                 entity.HasOne(e => e.Staff)
                     .WithMany(c => c.Schedules)
                     .HasForeignKey(e => e.StaffId)

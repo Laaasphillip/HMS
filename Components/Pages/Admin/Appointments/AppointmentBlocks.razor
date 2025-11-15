@@ -1,0 +1,634 @@
+﻿@page "/appointment-blocks"
+@using HMS.Models
+@using HMS.Services
+@using Microsoft.AspNetCore.Authorization
+@inject AdminService AdminService
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "AdminOrStaff")]
+@rendermode InteractiveServer
+
+<PageTitle>Appointment Blocks - HMS</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Appointment Time Blocks</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Time Blocks</li>
+                </ol>
+            </nav>
+        </div>
+        <button class="btn btn-primary" @onclick="() => OpenCreateModal()">
+            <i class="bi bi-plus-circle"></i> Add Time Block
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Blocks</h6>
+                            <h3 class="mb-0">@blocks.Count</h3>
+                        </div>
+                        <div class="text-primary">
+                            <i class="bi bi-calendar-x-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Active Blocks</h6>
+                            <h3 class="mb-0">@blocks.Count(b => b.IsActive)</h3>
+                        </div>
+                        <div class="text-success">
+                            <i class="bi bi-check-circle-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Upcoming Blocks</h6>
+                            <h3 class="mb-0">@blocks.Count(b => b.IsActive && b.Date.Date >= DateTime.Today)</h3>
+                        </div>
+                        <div class="text-info">
+                            <i class="bi bi-calendar-event-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Past Blocks</h6>
+                            <h3 class="mb-0">@blocks.Count(b => b.Date.Date < DateTime.Today)</h3>
+                        </div>
+                        <div class="text-secondary">
+                            <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="form-label">Staff Member</label>
+                    <select class="form-select" @bind="selectedStaffId" @bind:after="ApplyFilters">
+                        <option value="">All Staff</option>
+                        @foreach (var staff in allStaff)
+                        {
+                            <option value="@staff.Id">@staff.User.FirstName @staff.User.LastName</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Reason</label>
+                    <select class="form-select" @bind="selectedReason" @bind:after="ApplyFilters">
+                        <option value="">All Reasons</option>
+                        <option value="Meeting">Meeting</option>
+                        <option value="Emergency">Emergency</option>
+                        <option value="Leave">Leave</option>
+                        <option value="Personal">Personal</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" @bind="selectedStatus" @bind:after="ApplyFilters">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date Filter</label>
+                    <select class="form-select" @bind="selectedDateFilter" @bind:after="ApplyFilters">
+                        <option value="">All Dates</option>
+                        <option value="upcoming">Upcoming</option>
+                        <option value="today">Today</option>
+                        <option value="past">Past</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Blocks Table -->
+    <div class="card">
+        <div class="card-body">
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (!filteredBlocks.Any())
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                    <p class="text-muted mt-3">No time blocks found</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Staff Member</th>
+                                <th>Date</th>
+                                <th>Time Range</th>
+                                <th>Duration</th>
+                                <th>Reason</th>
+                                <th>Notes</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var block in filteredBlocks.OrderBy(b => b.Date).ThenBy(b => b.StartTime))
+                            {
+                                var isPast = block.Date.Date < DateTime.Today;
+                                <tr class="@(isPast ? "text-muted" : "")">
+                                    <td>
+                                        <div>
+                                            <strong>@block.Staff?.User.FirstName @block.Staff?.User.LastName</strong>
+                                            <br />
+                                            <small class="text-muted">@block.Staff?.Specialization</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="@(block.Date.Date == DateTime.Today ? "badge bg-info" : "")">
+                                            @block.Date.ToString("MMM dd, yyyy")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @block.StartTime.ToString(@"hh\:mm") - @block.EndTime.ToString(@"hh\:mm")
+                                    </td>
+                                    <td>
+                                        @{
+                                            var duration = block.EndTime - block.StartTime;
+                                            var hours = duration.Hours;
+                                            var minutes = duration.Minutes;
+                                        }
+                                        @if (hours > 0)
+                                        {
+                                            <text>@hours h </text>
+                                        }
+                                        @if (minutes > 0 || hours == 0)
+                                        {
+                                            <text>@minutes min</text>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetReasonBadgeClass(block.Reason)">
+                                            @block.Reason
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(block.Notes))
+                                        {
+                                            <span title="@block.Notes">
+                                                @(block.Notes.Length > 30 ? block.Notes.Substring(0, 30) + "..." : block.Notes)
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (block.IsActive)
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning">Inactive</span>
+                                        }
+                                    </td>
+                                    <td>@block.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" @onclick="() => OpenEditModal(block)" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" @onclick="() => OpenDeleteModal(block)" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+@if (showEditModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(editingBlock.Id == 0 ? "Create" : "Edit") Time Block</h5>
+                    <button type="button" class="btn-close" @onclick="CloseEditModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="editingBlock" OnValidSubmit="SaveBlock">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger" />
+
+                        <div class="mb-3">
+                            <label class="form-label">Staff Member *</label>
+                            <select class="form-select" @bind="editingBlock.StaffId">
+                                <option value="0">Select Staff Member</option>
+                                @foreach (var staff in allStaff)
+                                {
+                                    <option value="@staff.Id">@staff.User.FirstName @staff.User.LastName - @staff.Specialization</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Date *</label>
+                            <input type="date" class="form-control"
+                                   value="@editingBlock.Date.ToString("yyyy-MM-dd")"
+                                   @onchange="@((ChangeEventArgs e) => editingBlock.Date = DateTime.Parse(e.Value?.ToString() ?? DateTime.Today.ToString("yyyy-MM-dd")))" />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Start Time *</label>
+                                <input type="time" class="form-control"
+                                       value="@editingBlock.StartTime.ToString(@"hh\:mm")"
+                                       @onchange="@((ChangeEventArgs e) => editingBlock.StartTime = TimeSpan.Parse(e.Value?.ToString() ?? "00:00"))" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">End Time *</label>
+                                <input type="time" class="form-control"
+                                       value="@editingBlock.EndTime.ToString(@"hh\:mm")"
+                                       @onchange="@((ChangeEventArgs e) => editingBlock.EndTime = TimeSpan.Parse(e.Value?.ToString() ?? "00:00"))" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Reason *</label>
+                            <select class="form-select" @bind="editingBlock.Reason">
+                                <option value="Meeting">Meeting</option>
+                                <option value="Emergency">Emergency</option>
+                                <option value="Leave">Leave</option>
+                                <option value="Personal">Personal</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" @bind="editingBlock.Notes" rows="3" placeholder="Optional notes about this time block..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" @bind="editingBlock.IsActive" id="isActiveCheck" />
+                                <label class="form-check-label" for="isActiveCheck">
+                                    Active Block
+                                </label>
+                                <div>
+                                    <small class="text-muted">Inactive blocks will not affect appointment slot availability</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (editingBlock.Id == 0)
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> Creating this time block will automatically block any overlapping appointment slots for the selected staff member.
+                            </div>
+                        }
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseEditModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Save Time Block
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this time block?</p>
+                    <div class="card">
+                        <div class="card-body">
+                            <p class="mb-1"><strong>Staff:</strong> @deletingBlock?.Staff?.User.FirstName @deletingBlock?.Staff?.User.LastName</p>
+                            <p class="mb-1"><strong>Date:</strong> @deletingBlock?.Date.ToString("MMM dd, yyyy")</p>
+                            <p class="mb-1"><strong>Time:</strong> @deletingBlock?.StartTime.ToString(@"hh\:mm") - @deletingBlock?.EndTime.ToString(@"hh\:mm")</p>
+                            <p class="mb-0"><strong>Reason:</strong> @deletingBlock?.Reason</p>
+                        </div>
+                    </div>
+                    <p class="text-danger mt-3"><i class="bi bi-exclamation-triangle"></i> This will unblock any appointment slots that were blocked by this time block.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteBlock" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<HMS.Models.AppointmentBlock> blocks = new();
+    private List<HMS.Models.AppointmentBlock> filteredBlocks = new();
+    private List<HMS.Models.Staff> allStaff = new();
+
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    // Filters
+    private string selectedStaffId = "";
+    private string selectedReason = "";
+    private string selectedStatus = "";
+    private string selectedDateFilter = "";
+
+    // Modals
+    private bool showEditModal = false;
+    private bool showDeleteModal = false;
+    private AppointmentBlock editingBlock = new();
+    private AppointmentBlock? deletingBlock;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            // Load all staff members
+            allStaff = await AdminService.GetAllStaffAsync();
+
+            // Load all blocks
+            blocks = await AdminService.GetAllAppointmentBlocksAsync();
+
+            // ✅ ADD THIS LINE - Initialize filteredBlocks
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading data: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // ✅ ADD THIS METHOD
+    private void ApplyFilters()
+    {
+        filteredBlocks = blocks.ToList();
+
+        // Apply staff filter
+        if (!string.IsNullOrEmpty(selectedStaffId) && int.TryParse(selectedStaffId, out int staffId))
+        {
+            filteredBlocks = filteredBlocks.Where(b => b.StaffId == staffId).ToList();
+        }
+
+        // Apply reason filter
+        if (!string.IsNullOrEmpty(selectedReason))
+        {
+            filteredBlocks = filteredBlocks.Where(b => b.Reason == selectedReason).ToList();
+        }
+
+        // Apply status filter
+        if (!string.IsNullOrEmpty(selectedStatus))
+        {
+            if (selectedStatus == "active")
+            {
+                filteredBlocks = filteredBlocks.Where(b => b.IsActive).ToList();
+            }
+            else if (selectedStatus == "inactive")
+            {
+                filteredBlocks = filteredBlocks.Where(b => !b.IsActive).ToList();
+            }
+        }
+
+        // Apply date filter
+        if (!string.IsNullOrEmpty(selectedDateFilter))
+        {
+            filteredBlocks = selectedDateFilter switch
+            {
+                "upcoming" => filteredBlocks.Where(b => b.Date.Date >= DateTime.Today).ToList(),
+                "today" => filteredBlocks.Where(b => b.Date.Date == DateTime.Today).ToList(),
+                "past" => filteredBlocks.Where(b => b.Date.Date < DateTime.Today).ToList(),
+                _ => filteredBlocks
+            };
+        }
+
+        StateHasChanged();
+    }
+
+    private void OpenCreateModal()
+    {
+        editingBlock = new AppointmentBlock
+        {
+            Date = DateTime.Today,
+            Reason = "Meeting",
+            IsActive = true
+        };
+        showEditModal = true;
+    }
+
+    private void OpenEditModal(AppointmentBlock block)
+    {
+        editingBlock = new AppointmentBlock
+        {
+            Id = block.Id,
+            StaffId = block.StaffId,
+            Date = block.Date,
+            StartTime = block.StartTime,
+            EndTime = block.EndTime,
+            Reason = block.Reason,
+            Notes = block.Notes,
+            IsActive = block.IsActive,
+            Staff = block.Staff
+        };
+        showEditModal = true;
+    }
+
+    private void CloseEditModal()
+    {
+        showEditModal = false;
+        editingBlock = new();
+    }
+
+    private async Task SaveBlock()
+    {
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+
+            if (editingBlock.StaffId == 0)
+            {
+                errorMessage = "Please select a staff member";
+                return;
+            }
+
+            if (editingBlock.EndTime <= editingBlock.StartTime)
+            {
+                errorMessage = "End time must be after start time";
+                return;
+            }
+
+            if (editingBlock.Id == 0)
+            {
+                await AdminService.CreateAppointmentBlockAsync(editingBlock);
+                successMessage = "Time block created successfully. Overlapping appointment slots have been blocked.";
+            }
+            else
+            {
+                await AdminService.UpdateAppointmentBlockAsync(editingBlock);
+                successMessage = "Time block updated successfully";
+            }
+
+            CloseEditModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving time block: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void OpenDeleteModal(AppointmentBlock block)
+    {
+        deletingBlock = block;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        deletingBlock = null;
+    }
+
+    private async Task DeleteBlock()
+    {
+        if (deletingBlock == null) return;
+
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+
+            await AdminService.DeleteAppointmentBlockAsync(deletingBlock.Id);
+            successMessage = "Time block deleted successfully. Blocked appointment slots have been unblocked.";
+
+            CloseDeleteModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting time block: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private string GetReasonBadgeClass(string reason)
+    {
+        return reason switch
+        {
+            "Meeting" => "bg-primary",
+            "Emergency" => "bg-danger",
+            "Leave" => "bg-warning",
+            "Personal" => "bg-info",
+            "Other" => "bg-secondary",
+            _ => "bg-secondary"
+        };
+    }
+}
