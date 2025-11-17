@@ -2,7 +2,6 @@ using HMS.Components;
 using HMS.Components.Account;
 using HMS.Data;
 using HMS.Services;
-using HMS.Services.Interfaces;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -21,16 +20,8 @@ builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<AdminService>();
-builder.Services.AddScoped<PatientService>();
 
 
-builder.Services.AddScoped<IStaffService, StaffService>();
-
-builder.Services.AddHttpClient<StaffHttpService>(client =>
-{
-    client.BaseAddress = new Uri("https://localhost:5001"); 
-    client.DefaultRequestHeaders.Add("Accept", "application/json");
-});
 
 builder.Services.AddAuthentication(options =>
 {

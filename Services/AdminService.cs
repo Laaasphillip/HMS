@@ -1268,14 +1268,6 @@ namespace HMS.Services
 
         #region Invoice Management
 
-        public async Task<List<Appointment>> GetAllAppointmentsAsync()
-        {
-            return await _context.Appointments
-                .Include(a => a.Patient)
-                    .ThenInclude(p => p.User)
-                .ToListAsync();
-        }
-
         public async Task<List<Invoice>> GetAllInvoicesAsync()
         {
             return await _context.Invoices
