@@ -1,0 +1,280 @@
+﻿@page "/admin/timereport/create"
+@using HMS.Models
+@using HMS.Services
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@attribute [Authorize(Policy = "AdminOnly")]
+@inject AdminService AdminService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Create Time Report</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-clock-history me-2"></i>
+                        Create New Time Report
+                    </h4>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMessage
+                            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+                        </div>
+                    }
+
+                    @if (loading)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="@model" OnValidSubmit="HandleSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="text-danger mb-3" />
+
+                            <div class="row">
+                                <!-- Staff Selection -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Staff Member *</label>
+                                    <select class="form-select" @bind="model.StaffId">
+                                        <option value="0">-- Select Staff --</option>
+                                        @foreach (var staff in staffMembers)
+                                        {
+                                            <option value="@staff.Id">
+                                                @staff.User?.FirstName @staff.User?.LastName - @staff.Department
+                                            </option>
+                                        }
+                                    </select>
+                                    <ValidationMessage For="@(() => model.StaffId)" />
+                                </div>
+
+                                <!-- Schedule Selection (Optional) -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Schedule (Optional)</label>
+                                    <select class="form-select" @bind="model.ScheduleId">
+                                        <option value="">-- No Schedule --</option>
+                                        @foreach (var schedule in schedules)
+                                        {
+                                            <option value="@schedule.Id">
+                                                @schedule.Staff?.User?.FirstName @schedule.Staff?.User?.LastName -
+                                                @schedule.StartTime.ToString("yyyy-MM-dd HH:mm")
+                                            </option>
+                                        }
+                                    </select>
+                                </div>
+
+                                <!-- Clock In Date -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Clock In Date *</label>
+                                    <input type="date" class="form-control" @bind="clockInDate" />
+                                </div>
+
+                                <!-- Clock In Time -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Clock In Time *</label>
+                                    <input type="time" class="form-control" @bind="clockInTime" />
+                                </div>
+
+                                <!-- Clock Out Date -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Clock Out Date</label>
+                                    <input type="date" class="form-control" @bind="clockOutDate" />
+                                    <small class="text-muted">Optional - leave empty if still working</small>
+                                </div>
+
+                                <!-- Clock Out Time -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Clock Out Time</label>
+                                    <input type="time" class="form-control" @bind="clockOutTime" />
+                                </div>
+
+                                <!-- Activity Type -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Activity Type *</label>
+                                    <select class="form-select" @bind="model.ActivityType">
+                                        <option value="">-- Select Activity --</option>
+                                        <option value="Regular Work">Regular Work</option>
+                                        <option value="Overtime">Overtime</option>
+                                        <option value="On-Call">On-Call</option>
+                                        <option value="Emergency">Emergency</option>
+                                        <option value="Training">Training</option>
+                                        <option value="Meeting">Meeting</option>
+                                    </select>
+                                    <ValidationMessage For="@(() => model.ActivityType)" />
+                                </div>
+
+                                <!-- Calculated Hours (Read-only) -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Hours Worked</label>
+                                    <input type="text" class="form-control" value="@GetCalculatedHours()" readonly />
+                                    <small class="text-muted">Calculated automatically</small>
+                                </div>
+
+                                <!-- Notes -->
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Notes</label>
+                                    <textarea @bind="model.Notes" class="form-control" rows="3" placeholder="Optional notes..."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex gap-2 mt-4">
+                                <button type="submit" class="btn btn-success" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        <span>Creating...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check-circle me-1"></i>
+                                        <span>Create Time Report</span>
+                                    }
+                                </button>
+                                <button type="button" class="btn btn-secondary" @onclick="Cancel" disabled="@isSubmitting">
+                                    <i class="bi bi-x-circle me-1"></i> Cancel
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private TimeReportCreateModel model = new();
+    private List<Staff> staffMembers = new();
+    private List<Schedule> schedules = new();
+
+    private DateTime clockInDate = DateTime.Today;
+    private string clockInTime = DateTime.Now.ToString("HH:mm");
+    private DateTime? clockOutDate = null;
+    private string? clockOutTime = null;
+
+    private bool loading = true;
+    private bool isSubmitting = false;
+    private string? errorMessage = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Load staff members and schedules
+            staffMembers = await AdminService.GetAllStaffAsync();
+            schedules = await AdminService.GetAllSchedulesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading data: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private string GetCalculatedHours()
+    {
+        if (clockOutDate.HasValue && !string.IsNullOrEmpty(clockOutTime))
+        {
+            var clockIn = clockInDate.Add(TimeSpan.Parse(clockInTime));
+            var clockOut = clockOutDate.Value.Add(TimeSpan.Parse(clockOutTime));
+            var duration = clockOut - clockIn;
+            return duration.TotalHours.ToString("F2") + " hours";
+        }
+        return "N/A (Still working)";
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+
+            // Validate staff selection
+            if (model.StaffId == 0)
+            {
+                errorMessage = "Please select a staff member.";
+                return;
+            }
+
+            // Combine date and time for ClockIn
+            var clockIn = clockInDate.Add(TimeSpan.Parse(clockInTime));
+
+            // Combine date and time for ClockOut
+            DateTime? clockOut = null;
+            if (clockOutDate.HasValue && !string.IsNullOrEmpty(clockOutTime))
+            {
+                clockOut = clockOutDate.Value.Add(TimeSpan.Parse(clockOutTime));
+            }
+
+            // Parse ScheduleId
+            int? scheduleId = null;
+            if (!string.IsNullOrEmpty(model.ScheduleId))
+            {
+                scheduleId = int.Parse(model.ScheduleId);
+            }
+
+            // Call the AdminService to create the time report
+            var result = await AdminService.CreateTimeReportAsync(
+                staffId: model.StaffId,
+                scheduleId: scheduleId,
+                clockIn: clockIn,
+                clockOut: clockOut,
+                activityType: model.ActivityType,
+                notes: model.Notes ?? ""
+            );
+
+            if (result.Success)
+            {
+                Navigation.NavigateTo("/admin/timereport/index");
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating time report: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/admin/timereport/index");
+    }
+
+    // Model for form binding
+    public class TimeReportCreateModel
+    {
+        [Required(ErrorMessage = "Staff member is required")]
+        [Range(1, int.MaxValue, ErrorMessage = "Please select a staff member")]
+        public int StaffId { get; set; }
+
+        public string? ScheduleId { get; set; }
+
+        [Required(ErrorMessage = "Activity type is required")]
+        public string ActivityType { get; set; } = "Regular Work";
+
+        public string? Notes { get; set; }
+    }
+}
