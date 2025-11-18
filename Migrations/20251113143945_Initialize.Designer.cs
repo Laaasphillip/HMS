@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HMS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251110181922_initialize")]
-    partial class initialize
+    [Migration("20251113143945_Initialize")]
+    partial class Initialize
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -110,18 +110,25 @@ namespace HMS.Migrations
                     b.Property<DateTime>("AppointmentDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("AppointmentSlotId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("CreatedBy")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("DurationMinutes")
                         .HasColumnType("int");
 
                     b.Property<string>("Notes")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("PatientId")
@@ -134,7 +141,7 @@ namespace HMS.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("ScheduleId")
+                    b.Property<int?>("ScheduleId")
                         .HasColumnType("int");
 
                     b.Property<int>("StaffId")
@@ -149,14 +156,148 @@ namespace HMS.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AppointmentSlotId");
+
                     b.HasIndex("PatientId");
 
                     b.HasIndex("ScheduleId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[ScheduleId] IS NOT NULL");
 
                     b.HasIndex("StaffId");
 
                     b.ToTable("Appointments");
+                });
+
+            modelBuilder.Entity("HMS.Models.AppointmentBlock", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<TimeSpan>("EndTime")
+                        .HasColumnType("time");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StaffId")
+                        .HasColumnType("int");
+
+                    b.Property<TimeSpan>("StartTime")
+                        .HasColumnType("time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StaffId");
+
+                    b.ToTable("AppointmentBlocks");
+                });
+
+            modelBuilder.Entity("HMS.Models.AppointmentSlot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CurrentBookings")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<TimeSpan>("EndTime")
+                        .HasColumnType("time");
+
+                    b.Property<int>("MaxCapacity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ScheduleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StaffId")
+                        .HasColumnType("int");
+
+                    b.Property<TimeSpan>("StartTime")
+                        .HasColumnType("time");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScheduleId");
+
+                    b.HasIndex("StaffId");
+
+                    b.ToTable("AppointmentSlots");
+                });
+
+            modelBuilder.Entity("HMS.Models.AppointmentSlotConfiguration", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AdvanceBookingDays")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BufferTimeMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MaxPatientsPerSlot")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SlotDurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StaffId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StaffId");
+
+                    b.ToTable("AppointmentSlotConfigurations");
                 });
 
             modelBuilder.Entity("HMS.Models.Invoice", b =>
@@ -247,15 +388,14 @@ namespace HMS.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Address")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("BloodGroup")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("Contact")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("Createdat")
@@ -265,11 +405,9 @@ namespace HMS.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Interests")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Preferences")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("UserId")
@@ -292,34 +430,43 @@ namespace HMS.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("BreakEnd")
-                        .HasColumnType("datetime2");
+                    b.Property<TimeSpan?>("BreakEnd")
+                        .HasColumnType("time");
 
-                    b.Property<DateTime>("BreakStart")
-                        .HasColumnType("datetime2");
+                    b.Property<TimeSpan?>("BreakStart")
+                        .HasColumnType("time");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime>("EndTime")
+                    b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 
-                    b.Property<bool>("IsAvailable")
-                        .HasColumnType("bit");
+                    b.Property<TimeSpan>("EndTime")
+                        .HasColumnType("time");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ShiftType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("SlotsGenerated")
+                        .HasColumnType("bit");
+
                     b.Property<int>("StaffId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("StartTime")
-                        .HasColumnType("datetime2");
+                    b.Property<TimeSpan>("StartTime")
+                        .HasColumnType("time");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -337,16 +484,17 @@ namespace HMS.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Bankdetails")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ContractForm")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Department")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime>("HiredDate")
                         .HasColumnType("datetime2");
@@ -355,8 +503,8 @@ namespace HMS.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Specialization")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<decimal>("Taxes")
                         .HasColumnType("decimal(18,2)");
@@ -595,6 +743,11 @@ namespace HMS.Migrations
 
             modelBuilder.Entity("HMS.Models.Appointment", b =>
                 {
+                    b.HasOne("HMS.Models.AppointmentSlot", "AppointmentSlot")
+                        .WithMany("Appointments")
+                        .HasForeignKey("AppointmentSlotId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("HMS.Models.Patient", "Patient")
                         .WithMany("Appointments")
                         .HasForeignKey("PatientId")
@@ -604,8 +757,7 @@ namespace HMS.Migrations
                     b.HasOne("HMS.Models.Schedule", "Schedule")
                         .WithOne("Appointment")
                         .HasForeignKey("HMS.Models.Appointment", "ScheduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("HMS.Models.Staff", "Staff")
                         .WithMany("Appointments")
@@ -613,9 +765,52 @@ namespace HMS.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("AppointmentSlot");
+
                     b.Navigation("Patient");
 
                     b.Navigation("Schedule");
+
+                    b.Navigation("Staff");
+                });
+
+            modelBuilder.Entity("HMS.Models.AppointmentBlock", b =>
+                {
+                    b.HasOne("HMS.Models.Staff", "Staff")
+                        .WithMany()
+                        .HasForeignKey("StaffId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Staff");
+                });
+
+            modelBuilder.Entity("HMS.Models.AppointmentSlot", b =>
+                {
+                    b.HasOne("HMS.Models.Schedule", "Schedule")
+                        .WithMany("AppointmentSlots")
+                        .HasForeignKey("ScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HMS.Models.Staff", "Staff")
+                        .WithMany()
+                        .HasForeignKey("StaffId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Schedule");
+
+                    b.Navigation("Staff");
+                });
+
+            modelBuilder.Entity("HMS.Models.AppointmentSlotConfiguration", b =>
+                {
+                    b.HasOne("HMS.Models.Staff", "Staff")
+                        .WithMany()
+                        .HasForeignKey("StaffId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Staff");
                 });
@@ -771,8 +966,12 @@ namespace HMS.Migrations
 
             modelBuilder.Entity("HMS.Models.Appointment", b =>
                 {
-                    b.Navigation("Invoice")
-                        .IsRequired();
+                    b.Navigation("Invoice");
+                });
+
+            modelBuilder.Entity("HMS.Models.AppointmentSlot", b =>
+                {
+                    b.Navigation("Appointments");
                 });
 
             modelBuilder.Entity("HMS.Models.Invoice", b =>
@@ -791,11 +990,11 @@ namespace HMS.Migrations
 
             modelBuilder.Entity("HMS.Models.Schedule", b =>
                 {
-                    b.Navigation("Appointment")
-                        .IsRequired();
+                    b.Navigation("Appointment");
 
-                    b.Navigation("TimeReport")
-                        .IsRequired();
+                    b.Navigation("AppointmentSlots");
+
+                    b.Navigation("TimeReport");
                 });
 
             modelBuilder.Entity("HMS.Models.Staff", b =>

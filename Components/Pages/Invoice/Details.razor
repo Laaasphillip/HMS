@@ -1,92 +1,788 @@
-﻿﻿
-@page "/invoice/details"
+﻿@page "/invoice/details/{InvoiceId:int}"
+@using HMS.Models
+@using HMS.Services
+@using Microsoft.AspNetCore.Authorization
+@inject AdminService AdminService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "Authenticated")]
+@rendermode InteractiveServer
 
-<section class="content-area container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold mb-0">
-            <i class="bi bi-receipt-cutoff me-2"></i> Your Transactions
-        </h2>
-        <button class="btn btn-outline-primary">
-            <i class="bi bi-arrow-repeat me-1"></i> Refresh
-        </button>
-    </div>
+<PageTitle>Invoice Details - HMS</PageTitle>
 
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <h5 class="mb-1 fw-semibold">Invoice #INV-1024</h5>
-                    <p class="text-muted mb-0">Date: Oct 23, 2025</p>
+<div class="container-fluid py-4">
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (invoice == null)
+    {
+        <div class="alert alert-danger">Invoice not found</div>
+    }
+    else
+    {
+        <!-- Action Buttons -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <button class="btn btn-secondary" @onclick='() => NavigationManager.NavigateTo(isPatient ? "/patient/invoices" : "/invoice")'>
+                    <i class="bi bi-arrow-left me-2"></i>Back to Invoices
+                </button>
+            </div>
+            <div class="col-md-6 text-end">
+                <button class="btn btn-outline-secondary me-2" @onclick="PrintInvoice">
+                    <i class="bi bi-printer me-2"></i>Print
+                </button>
+                <button class="btn btn-outline-primary me-2" @onclick="DownloadInvoice">
+                    <i class="bi bi-download me-2"></i>Download PDF
+                </button>
+                @if (invoice.Status != "Paid" && remainingAmount > 0)
+                {
+                    <button class="btn btn-success btn-lg" @onclick="OpenPaymentModal">
+                        <i class="bi bi-credit-card me-2"></i>Pay @remainingAmount.ToString("C")
+                    </button>
+                }
+                else if (invoice.Status == "Paid")
+                {
+                    <span class="badge bg-success fs-5 py-2 px-3">
+                        <i class="bi bi-check-circle me-2"></i>Fully Paid
+                    </span>
+                }
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+            </div>
+        }
+
+        <!-- Professional Invoice Layout -->
+        <div class="card shadow-lg border-0" id="invoice-content">
+            <div class="card-body p-5">
+                <!-- Header Section -->
+                <div class="row mb-5">
+                    <div class="col-md-6">
+                        <h1 class="text-primary mb-3">
+                            <i class="bi bi-hospital me-2"></i>HMS Healthcare
+                        </h1>
+                        <p class="mb-1"><strong>Healthcare Management System</strong></p>
+                        <p class="mb-1">123 Medical Center Drive</p>
+                        <p class="mb-1">Kista, Stockholm, SE 12345</p>
+                        <p class="mb-1">Phone: +46 8 123 4567</p>
+                        <p class="mb-0">Email: billing@hms-healthcare.se</p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <h2 class="text-uppercase mb-4">INVOICE</h2>
+                        <div class="bg-light p-3 rounded">
+                            <div class="row mb-2">
+                                <div class="col-6 text-start"><strong>Invoice #:</strong></div>
+                                <div class="col-6">@invoice.InvoiceNumber</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-6 text-start"><strong>Date:</strong></div>
+                                <div class="col-6">@invoice.CreatedAt.ToString("MMM dd, yyyy")</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-6 text-start"><strong>Due Date:</strong></div>
+                                <div class="col-6">
+                                    @if (invoice.DueDate < DateTime.Now && invoice.Status != "Paid")
+                                    {
+                                        <span class="text-danger fw-bold">
+                                            @invoice.DueDate.ToString("MMM dd, yyyy")
+                                            <i class="bi bi-exclamation-triangle ms-1"></i>
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span>@invoice.DueDate.ToString("MMM dd, yyyy")</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6 text-start"><strong>Status:</strong></div>
+                                <div class="col-6">
+                                    <span class="badge bg-@GetStatusColor(invoice.Status)">
+                                        @invoice.Status
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <span class="badge bg-success p-2 px-3">Paid</span>
+
+                <hr class="my-4" />
+
+                <!-- Bill To & Service Provider Section -->
+                <div class="row mb-5">
+                    <div class="col-md-6">
+                        <h5 class="text-primary mb-3">BILL TO</h5>
+                        <div class="bg-light p-3 rounded">
+                            @if (invoice.Patient?.User != null)
+                            {
+                                <p class="mb-1"><strong class="fs-5">@invoice.Patient.User.FirstName @invoice.Patient.User.LastName</strong></p>
+                                <p class="mb-1"><i class="bi bi-person me-2"></i>Patient ID: @invoice.PatientId</p>
+                                @if (!string.IsNullOrEmpty(invoice.Patient.User.PersonalNumber))
+                                {
+                                    <p class="mb-1"><i class="bi bi-card-text me-2"></i>Personal #: @invoice.Patient.User.PersonalNumber</p>
+                                }
+                                @if (!string.IsNullOrEmpty(invoice.Patient.Address))
+                                {
+                                    <p class="mb-1"><i class="bi bi-geo-alt me-2"></i>@invoice.Patient.Address</p>
+                                }
+                                @if (!string.IsNullOrEmpty(invoice.Patient.Contact))
+                                {
+                                    <p class="mb-1"><i class="bi bi-telephone me-2"></i>@invoice.Patient.Contact</p>
+                                }
+                                @if (!string.IsNullOrEmpty(invoice.Patient.User.Email))
+                                {
+                                    <p class="mb-0"><i class="bi bi-envelope me-2"></i>@invoice.Patient.User.Email</p>
+                                }
+                            }
+                            else if (invoice.Appointment?.Patient?.User != null)
+                            {
+                                <p class="mb-1"><strong class="fs-5">@invoice.Appointment.Patient.User.FirstName @invoice.Appointment.Patient.User.LastName</strong></p>
+                                <p class="mb-1"><i class="bi bi-person me-2"></i>Patient ID: @invoice.Appointment.PatientId</p>
+                                @if (!string.IsNullOrEmpty(invoice.Appointment.Patient.User.PersonalNumber))
+                                {
+                                    <p class="mb-1"><i class="bi bi-card-text me-2"></i>Personal #: @invoice.Appointment.Patient.User.PersonalNumber</p>
+                                }
+                                @if (!string.IsNullOrEmpty(invoice.Appointment.Patient.Address))
+                                {
+                                    <p class="mb-1"><i class="bi bi-geo-alt me-2"></i>@invoice.Appointment.Patient.Address</p>
+                                }
+                                @if (!string.IsNullOrEmpty(invoice.Appointment.Patient.Contact))
+                                {
+                                    <p class="mb-1"><i class="bi bi-telephone me-2"></i>@invoice.Appointment.Patient.Contact</p>
+                                }
+                                @if (!string.IsNullOrEmpty(invoice.Appointment.Patient.User.Email))
+                                {
+                                    <p class="mb-0"><i class="bi bi-envelope me-2"></i>@invoice.Appointment.Patient.User.Email</p>
+                                }
+                            }
+                            else
+                            {
+                                <p class="text-muted">Patient information not available</p>
+                            }
+                        </div>
+                    </div>
+
+                    @if (invoice.Appointment != null)
+                    {
+                        <div class="col-md-6">
+                            <h5 class="text-primary mb-3">SERVICE PROVIDER</h5>
+                            <div class="bg-light p-3 rounded">
+                                @if (invoice.Appointment.Staff?.User != null)
+                                {
+                                    <p class="mb-1"><strong class="fs-5">Dr. @invoice.Appointment.Staff.User.FirstName @invoice.Appointment.Staff.User.LastName</strong></p>
+                                    @if (!string.IsNullOrEmpty(invoice.Appointment.Staff.Specialization))
+                                    {
+                                        <p class="mb-1"><i class="bi bi-award me-2"></i>@invoice.Appointment.Staff.Specialization</p>
+                                    }
+                                    <p class="mb-1"><i class="bi bi-building me-2"></i>Department: @invoice.Appointment.Staff.Department</p>
+                                }
+                                <hr class="my-2" />
+                                <p class="mb-1"><strong>Appointment Details:</strong></p>
+                                <p class="mb-1"><i class="bi bi-calendar-event me-2"></i>Date: @invoice.Appointment.AppointmentDate.ToString("MMMM dd, yyyy")</p>
+                                <p class="mb-1"><i class="bi bi-clock me-2"></i>Time: @invoice.Appointment.AppointmentDate.ToString("HH:mm")</p>
+                                @if (!string.IsNullOrEmpty(invoice.Appointment.Reason))
+                                {
+                                    <p class="mb-0"><i class="bi bi-file-medical me-2"></i>Reason: @invoice.Appointment.Reason</p>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Services/Items Table -->
+                <div class="mb-5">
+                    <h5 class="text-primary mb-3">SERVICES & CHARGES</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th style="width: 50%;">Description</th>
+                                    <th class="text-center" style="width: 15%;">Quantity</th>
+                                    <th class="text-end" style="width: 17.5%;">Unit Price</th>
+                                    <th class="text-end" style="width: 17.5%;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (invoice.InvoiceItems != null && invoice.InvoiceItems.Any())
+                                {
+                                    @foreach (var item in invoice.InvoiceItems)
+                                    {
+                                        <tr>
+                                            <td>@item.Description</td>
+                                            <td class="text-center">@item.Quantity</td>
+                                            <td class="text-end">@item.UnitPrice.ToString("C")</td>
+                                            <td class="text-end fw-bold">@item.TotalPrice.ToString("C")</td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <!-- Default item if no invoice items exist -->
+                                    <tr>
+                                        <td>
+                                            Medical Consultation
+                                            @if (invoice.Appointment != null && !string.IsNullOrEmpty(invoice.Appointment.Reason))
+                                            {
+                                                <br />
+
+                                                <small class="text-muted">@invoice.Appointment.Reason</small>
+                                            }
+                                        </td>
+                                        <td class="text-center">1</td>
+                                        <td class="text-end">@invoice.SubTotal.ToString("C")</td>
+                                        <td class="text-end fw-bold">@invoice.SubTotal.ToString("C")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Totals Section - Card-Based Design -->
+                <div class="row mb-4 g-3">
+                    <!-- Notes Card -->
+                    <div class="col-md-6">
+                        @if (!string.IsNullOrEmpty(invoice.Appointment?.Notes))
+                        {
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-body">
+                                    <div class="d-flex mb-3">
+                                        <div class="flex-shrink-0">
+                                            <div class="bg-primary bg-opacity-10 rounded p-3">
+                                                <i class="bi bi-file-text text-primary fs-4"></i>
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mb-1">Appointment Notes</h6>
+                                            <small class="text-muted">Additional information</small>
+                                        </div>
+                                    </div>
+                                    <div class="bg-light rounded p-3">
+                                        <p class="mb-0 small">@invoice.Appointment.Notes</p>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Totals Card -->
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <!-- Line Items -->
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-secondary">Subtotal</span>
+                                        <span class="fw-medium">@invoice.SubTotal.ToString("C")</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between pb-3 border-bottom">
+                                        <span class="text-secondary">
+                                            Tax <small class="text-muted">(@((invoice.SubTotal > 0 ? (invoice.TaxAmount / invoice.SubTotal * 100) : 0).ToString("F1"))%)</small>
+                                        </span>
+                                        <span class="fw-medium">@invoice.TaxAmount.ToString("C")</span>
+                                    </div>
+                                </div>
+
+                                <!-- Total -->
+                                <div class="bg-gradient rounded p-3 mb-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                    <div class="d-flex justify-content-between align-items-center text-white">
+                                        <div>
+                                            <small class="opacity-75 d-block">Total Amount</small>
+                                            <span class="fs-5 fw-bold">@invoice.TotalAmount.ToString("C")</span>
+                                        </div>
+                                        <i class="bi bi-receipt fs-2 opacity-25"></i>
+                                    </div>
+                                </div>
+
+                                @if (totalPaid > 0)
+                                {
+                                    <!-- Payments -->
+                                    <div class="mb-2">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-success">
+                                                <i class="bi bi-check-circle me-1"></i>Amount Paid
+                                            </span>
+                                            <span class="fw-medium text-success">@totalPaid.ToString("C")</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Balance -->
+                                    @if (remainingAmount > 0)
+                                    {
+                                        <div class="alert alert-danger mb-0 d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                                <strong>Balance Due</strong>
+                                            </div>
+                                            <span class="fs-4 fw-bold">@remainingAmount.ToString("C")</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="alert alert-success mb-0 d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <i class="bi bi-check-circle-fill me-2"></i>
+                                                <strong>Paid in Full</strong>
+                                            </div>
+                                            <span class="fs-4 fw-bold">@remainingAmount.ToString("C")</span>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment History -->
+                @if (transactions.Any())
+                {
+                    <div class="mb-4">
+                        <h5 class="text-primary mb-3">PAYMENT HISTORY</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Transaction #</th>
+                                        <th>Payment Method</th>
+                                        <th class="text-end">Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var transaction in transactions)
+                                    {
+                                        <tr>
+                                            <td>@transaction.TransactionDate.ToString("MMM dd, yyyy HH:mm")</td>
+                                            <td>@transaction.TransactionNumber</td>
+                                            <td>@transaction.PaymentMethod</td>
+                                            <td class="text-end fw-bold">@transaction.Amount.ToString("C")</td>
+                                            <td>
+                                                <span class="badge bg-@GetStatusColor(transaction.Status)">
+                                                    @transaction.Status
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <td colspan="3" class="text-end"><strong>Total Paid:</strong></td>
+                                        <td class="text-end"><strong>@totalPaid.ToString("C")</strong></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                }
+
+                <!-- Footer Section -->
+                <hr class="my-4" />
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary mb-2">Payment Instructions:</h6>
+                        <p class="small mb-1"><strong>Bank Transfer:</strong> HMS Healthcare Bank, Account: 1234-5678-9012</p>
+                        <p class="small mb-1"><strong>Reference:</strong> @invoice.InvoiceNumber</p>
+                        <p class="small mb-0"><strong>Payment Methods:</strong> Credit Card, Debit Card, Bank Transfer, Swish</p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <p class="small mb-1"><strong>Questions?</strong></p>
+                        <p class="small mb-1">Contact our billing department</p>
+                        <p class="small mb-1">Email: billing@hms-healthcare.se</p>
+                        <p class="small mb-0">Phone: +46 8 123 4567</p>
+                    </div>
+                </div>
+
+                @if (invoice.Status != "Paid" && remainingAmount > 0)
+                {
+                    <div class="alert alert-warning mt-4 mb-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>Payment Due: @remainingAmount.ToString("C")</strong>
+                                @if (invoice.DueDate < DateTime.Now)
+                                {
+                                    <span class="text-danger"> - OVERDUE since @invoice.DueDate.ToString("MMM dd, yyyy")</span>
+                                }
+                                else
+                                {
+                                    <span> - Due by @invoice.DueDate.ToString("MMM dd, yyyy")</span>
+                                }
+                            </div>
+                            <button class="btn btn-success" @onclick="OpenPaymentModal">
+                                <i class="bi bi-credit-card me-2"></i>Pay Now
+                            </button>
+                        </div>
+                    </div>
+                }
+                else if (invoice.Status == "Paid")
+                {
+                    <div class="alert alert-success mt-4 mb-0 text-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            This invoice has been paid in full. Thank you!
+                        </h5>
+                    </div>
+                }
             </div>
+        </div>
+    }
+</div>
 
-            <div class="table-responsive">
-                <table class="table table-borderless align-middle">
-                    <thead class="border-bottom">
-                        <tr class="text-muted">
-                            <th>Treatment</th>
-                            <th>Doctor</th>
-                            <th>Quantity</th>
-                            <th>Tax</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Dengue Treatment</td>
-                            <td>Dr. Rajitha</td>
-                            <td>1</td>
-                            <td>10%</td>
-                            <td>$15,000.00</td>
-                        </tr>
-                        <tr>
-                            <td>Consultation</td>
-                            <td>Dr. Rajitha</td>
-                            <td>1</td>
-                            <td>5%</td>
-                            <td>$2,500.00</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+<!-- Payment Modal -->
+@if (showPaymentModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-credit-card me-2"></i>Make Payment
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="ClosePaymentModal"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(paymentErrorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            @paymentErrorMessage
+                        </div>
+                    }
 
-            <hr />
+                    <!-- Payment Summary -->
+                    <div class="alert alert-info">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">Invoice Total</small>
+                                <strong>@invoice.TotalAmount.ToString("C")</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">Already Paid</small>
+                                <strong class="text-success">@totalPaid.ToString("C")</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">Balance Due</small>
+                                <strong class="text-danger">@remainingAmount.ToString("C")</strong>
+                            </div>
+                        </div>
+                    </div>
 
-            <div class="d-flex justify-content-end">
-                <div class="text-end">
-                    <p class="text-muted mb-1">Subtotal: $17,500.00</p>
-                    <p class="text-muted mb-1">Tax (10%): $1,750.00</p>
-                    <h5 class="fw-bold mb-0">Total: $19,250.00</h5>
+                    <!-- Payment Form -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Payment Amount *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" @bind="paymentAmount"
+                                       step="0.01" min="0.01" max="@remainingAmount" />
+                            </div>
+                            <small class="text-muted">Maximum: @remainingAmount.ToString("C")</small>
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => paymentAmount = remainingAmount">
+                                    Pay Full Amount
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Payment Method *</label>
+                            <select class="form-select" @bind="paymentMethod">
+                                <option value="Credit Card">Credit Card</option>
+                                <option value="Debit Card">Debit Card</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Mobile Payment">Mobile Payment (Swish)</option>
+                                <option value="Check">Check</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method Details -->
+                    @if (paymentMethod == "Credit Card" || paymentMethod == "Debit Card")
+                    {
+                        <div class="border rounded p-3 mb-3 bg-light">
+                            <h6 class="mb-3">Card Details</h6>
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label class="form-label">Card Number</label>
+                                    <input type="text" class="form-control" placeholder="1234 5678 9012 3456"
+                                           @bind="cardNumber" maxlength="19" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Expiry Date</label>
+                                    <input type="text" class="form-control" placeholder="MM/YY"
+                                           @bind="cardExpiry" maxlength="5" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">CVV</label>
+                                    <input type="text" class="form-control" placeholder="123"
+                                           @bind="cardCvv" maxlength="4" />
+                                </div>
+                                <div class="col-md-12 mb-3">
+                                    <label class="form-label">Cardholder Name</label>
+                                    <input type="text" class="form-control" placeholder="Name on card"
+                                           @bind="cardholderName" />
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else if (paymentMethod == "Bank Transfer")
+                    {
+                        <div class="border rounded p-3 mb-3 bg-light">
+                            <h6 class="mb-3">Bank Transfer Details</h6>
+                            <p class="mb-2"><strong>Bank:</strong> HMS Healthcare Bank</p>
+                            <p class="mb-2"><strong>Account:</strong> 1234-5678-9012</p>
+                            <p class="mb-2"><strong>Reference:</strong> @invoice.InvoiceNumber</p>
+                            <div class="alert alert-warning mt-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Please include the invoice number as reference
+                            </div>
+                        </div>
+                    }
+                    else if (paymentMethod == "Mobile Payment")
+                    {
+                        <div class="border rounded p-3 mb-3 bg-light">
+                            <h6 class="mb-3">Mobile Payment (Swish)</h6>
+                            <div class="mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" placeholder="+46 70 123 45 67"
+                                       @bind="mobileNumber" />
+                            </div>
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                You will receive a push notification to approve the payment
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Terms -->
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" @bind="acceptTerms" id="acceptTerms" />
+                        <label class="form-check-label" for="acceptTerms">
+                            I confirm that the payment information is correct
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="ClosePaymentModal">Cancel</button>
+                    <button type="button" class="btn btn-success btn-lg" @onclick="ProcessPayment" disabled="@isProcessing">
+                        @if (isProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <text>Processing...</text>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-2"></i>
+                            <text>Pay @paymentAmount.ToString("C")</text>
+                        }
+                    </button>
                 </div>
             </div>
         </div>
     </div>
+}
 
-    <div class="card shadow-sm border-0">
-        <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-                <h6 class="fw-semibold mb-1">Payment Method</h6>
-                <p class="text-muted mb-0">Credit Card (**** 3456)</p>
-            </div>
-            <button class="btn btn-outline-success">
-                <i class="bi bi-download me-1"></i> Download Receipt
-            </button>
-        </div>
-    </div>
-</section>
+@code {
+    [Parameter] public int InvoiceId { get; set; }
 
-<style>
-    .content-area {
-        background-color: #f8f9fa;
-        min-height: 100vh;
+    private HMS.Models.Invoice? invoice;
+    private List<HMS.Models.Transaction> transactions = new();
+    private bool isLoading = true;
+    private bool isProcessing = false;
+    private bool isPatient = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private string? paymentErrorMessage;
+
+    private decimal totalPaid = 0;
+    private decimal remainingAmount = 0;
+
+    // Payment Modal
+    private bool showPaymentModal = false;
+    private decimal paymentAmount = 0;
+    private string paymentMethod = "Credit Card";
+    private bool acceptTerms = false;
+
+    // Card Details
+    private string cardNumber = "";
+    private string cardExpiry = "";
+    private string cardCvv = "";
+    private string cardholderName = "";
+    private string mobileNumber = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
     }
 
-    table th {
-        font-weight: 600;
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+
+            // Check if user is a patient
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            isPatient = authState.User.IsInRole("Patient");
+
+            invoice = await AdminService.GetInvoiceByIdAsync(InvoiceId);
+
+            if (invoice != null)
+            {
+                // Get transactions for this invoice
+                transactions = await AdminService.GetTransactionsByInvoiceIdAsync(InvoiceId);
+                transactions = transactions.OrderByDescending(t => t.TransactionDate).ToList();
+
+                // Calculate amounts
+                totalPaid = transactions
+                    .Where(t => t.Status == "Completed" || t.Status == "Success")
+                    .Sum(t => t.Amount);
+
+                remainingAmount = invoice.TotalAmount - totalPaid;
+                paymentAmount = remainingAmount;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading invoice: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
-    table td {
-        vertical-align: middle;
+    private void OpenPaymentModal()
+    {
+        paymentAmount = remainingAmount;
+        paymentMethod = "Credit Card";
+        acceptTerms = false;
+        cardNumber = "";
+        cardExpiry = "";
+        cardCvv = "";
+        cardholderName = "";
+        mobileNumber = "";
+        paymentErrorMessage = null;
+        showPaymentModal = true;
     }
-</style>
+
+    private void ClosePaymentModal()
+    {
+        showPaymentModal = false;
+    }
+
+    private async Task ProcessPayment()
+    {
+        try
+        {
+            isProcessing = true;
+            paymentErrorMessage = null;
+
+            // Validation
+            if (paymentAmount <= 0)
+            {
+                paymentErrorMessage = "Payment amount must be greater than zero";
+                return;
+            }
+
+            if (paymentAmount > remainingAmount)
+            {
+                paymentErrorMessage = $"Payment amount cannot exceed balance due ({remainingAmount:C})";
+                return;
+            }
+
+            if (!acceptTerms)
+            {
+                paymentErrorMessage = "Please confirm the payment information";
+                return;
+            }
+
+            // Validate card details if applicable
+            if (paymentMethod == "Credit Card" || paymentMethod == "Debit Card")
+            {
+                if (string.IsNullOrWhiteSpace(cardNumber) || string.IsNullOrWhiteSpace(cardExpiry) ||
+                    string.IsNullOrWhiteSpace(cardCvv) || string.IsNullOrWhiteSpace(cardholderName))
+                {
+                    paymentErrorMessage = "Please fill in all card details";
+                    return;
+                }
+            }
+
+            if (paymentMethod == "Mobile Payment" && string.IsNullOrWhiteSpace(mobileNumber))
+            {
+                paymentErrorMessage = "Please enter your phone number";
+                return;
+            }
+
+            // Create transaction
+            var transaction = new HMS.Models.Transaction
+            {
+                InvoiceId = InvoiceId,
+                Amount = paymentAmount,
+                PaymentMethod = paymentMethod,
+                Status = "Completed",
+                TransactionDate = DateTime.Now
+            };
+
+            await AdminService.CreateTransactionAsync(transaction);
+
+            successMessage = $"Payment of {paymentAmount:C} processed successfully!";
+            ClosePaymentModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            paymentErrorMessage = $"Payment failed: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void PrintInvoice()
+    {
+        // TODO: Implement print functionality
+        successMessage = "Print functionality will be implemented";
+    }
+
+    private void DownloadInvoice()
+    {
+        // TODO: Implement PDF download
+        successMessage = "PDF download functionality will be implemented";
+    }
+
+    private string GetStatusColor(string? status)
+    {
+        return status switch
+        {
+            "Paid" or "Completed" or "Success" => "success",
+            "Pending" or "Unpaid" or "Partially Paid" => "warning",
+            "Cancelled" or "Failed" => "danger",
+            "Refunded" => "secondary",
+            _ => "secondary"
+        };
+    }
+
+
+}

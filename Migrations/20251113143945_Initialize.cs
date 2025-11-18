@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace HMS.Migrations
 {
     /// <inheritdoc />
-    public partial class AppointmentView : Migration
+    public partial class Initialize : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -199,10 +199,7 @@ namespace HMS.Migrations
                     Vacationdays = table.Column<int>(type: "int", nullable: false),
                     Specialization = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     HourlyRate = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    HiredDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ConsultationFee = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    IsAcceptingPatients = table.Column<bool>(type: "bit", nullable: false),
-                    MaxDailyAppointments = table.Column<int>(type: "int", nullable: false)
+                    HiredDate = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -223,9 +220,9 @@ namespace HMS.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     StaffId = table.Column<int>(type: "int", nullable: false),
                     Date = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    StartTime = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    EndTime = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Reason = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    StartTime = table.Column<TimeSpan>(type: "time", nullable: false),
+                    EndTime = table.Column<TimeSpan>(type: "time", nullable: false),
+                    Reason = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -239,7 +236,7 @@ namespace HMS.Migrations
                         column: x => x.StaffId,
                         principalTable: "Staff",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -265,7 +262,7 @@ namespace HMS.Migrations
                         column: x => x.StaffId,
                         principalTable: "Staff",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -276,10 +273,10 @@ namespace HMS.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     StaffId = table.Column<int>(type: "int", nullable: false),
                     Date = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    StartTime = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    EndTime = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    BreakStart = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    BreakEnd = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    StartTime = table.Column<TimeSpan>(type: "time", nullable: false),
+                    EndTime = table.Column<TimeSpan>(type: "time", nullable: false),
+                    BreakStart = table.Column<TimeSpan>(type: "time", nullable: true),
+                    BreakEnd = table.Column<TimeSpan>(type: "time", nullable: true),
                     ShiftType = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     SlotsGenerated = table.Column<bool>(type: "bit", nullable: false),
@@ -307,8 +304,8 @@ namespace HMS.Migrations
                     ScheduleId = table.Column<int>(type: "int", nullable: false),
                     StaffId = table.Column<int>(type: "int", nullable: false),
                     Date = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    StartTime = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    EndTime = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    StartTime = table.Column<TimeSpan>(type: "time", nullable: false),
+                    EndTime = table.Column<TimeSpan>(type: "time", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     MaxCapacity = table.Column<int>(type: "int", nullable: false),
                     CurrentBookings = table.Column<int>(type: "int", nullable: false),
@@ -339,9 +336,9 @@ namespace HMS.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     StaffId = table.Column<int>(type: "int", nullable: false),
-                    ScheduleId = table.Column<int>(type: "int", nullable: false),
+                    ScheduleId = table.Column<int>(type: "int", nullable: true),
                     ClockIn = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ClockOut = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ClockOut = table.Column<DateTime>(type: "datetime2", nullable: true),
                     HoursWorked = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     ActivityType = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Notes = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -422,7 +419,7 @@ namespace HMS.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     PatientId = table.Column<int>(type: "int", nullable: false),
-                    AppointmentId = table.Column<int>(type: "int", nullable: false),
+                    AppointmentId = table.Column<int>(type: "int", nullable: true),
                     InvoiceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     SubTotal = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     TaxAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
@@ -586,7 +583,8 @@ namespace HMS.Migrations
                 name: "IX_Invoices_AppointmentId",
                 table: "Invoices",
                 column: "AppointmentId",
-                unique: true);
+                unique: true,
+                filter: "[AppointmentId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Invoices_PatientId",
@@ -614,7 +612,8 @@ namespace HMS.Migrations
                 name: "IX_TimeReports_ScheduleId",
                 table: "TimeReports",
                 column: "ScheduleId",
-                unique: true);
+                unique: true,
+                filter: "[ScheduleId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TimeReports_StaffId",

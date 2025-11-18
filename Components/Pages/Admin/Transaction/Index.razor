@@ -1,128 +1,640 @@
 ﻿@page "/transaction"
-
-@inject NavigationManager Navigation
+@using HMS.Models
+@using HMS.Services
+@using Microsoft.AspNetCore.Authorization
+@inject AdminService AdminService
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "AdminOnly")]
 @rendermode InteractiveServer
 
-<h3 class="mb-4">💳 Transaction Management</h3>
+<PageTitle>Transactions - HMS</PageTitle>
 
-<div class="row mb-4">
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card shadow-sm text-center">
-            <div class="card-body">
-                <h6 class="text-muted mb-1">Total Revenue</h6>
-                <h4 class="text-success">$45,230</h4>
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>💳 Transaction Management</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Transactions</li>
+                </ol>
+            </nav>
+        </div>
+        <button class="btn btn-primary" @onclick="OpenCreateModal">
+            <i class="bi bi-plus-circle"></i> Add Transaction
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Total Revenue</h6>
+                            <h4 class="text-success mb-0">@totalRevenue.ToString("C")</h4>
+                        </div>
+                        <div class="text-success">
+                            <i class="bi bi-cash-stack" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Completed</h6>
+                            <h4 class="mb-0">@completedCount</h4>
+                        </div>
+                        <div class="text-primary">
+                            <i class="bi bi-check-circle-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Pending</h6>
+                            <h4 class="text-warning mb-0">@pendingCount</h4>
+                        </div>
+                        <div class="text-warning">
+                            <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Refunded</h6>
+                            <h4 class="text-danger mb-0">@refundedCount</h4>
+                        </div>
+                        <div class="text-danger">
+                            <i class="bi bi-arrow-counterclockwise" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card shadow-sm text-center">
-            <div class="card-body">
-                <h6 class="text-muted mb-1">Completed Transactions</h6>
-                <h4>152</h4>
+
+    <!-- Filters -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" placeholder="Patient or Transaction #"
+                           @bind="searchTerm" @bind:event="oninput" @bind:after="ApplyFilters" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">From Date</label>
+                    <input type="date" class="form-control" @bind="fromDate" @bind:after="ApplyFilters" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">To Date</label>
+                    <input type="date" class="form-control" @bind="toDate" @bind:after="ApplyFilters" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" @bind="selectedStatus" @bind:after="ApplyFilters">
+                        <option value="">All</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Success">Success</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Failed">Failed</option>
+                        <option value="Refunded">Refunded</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Payment Method</label>
+                    <select class="form-select" @bind="selectedPaymentMethod" @bind:after="ApplyFilters">
+                        <option value="">All</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Credit Card">Credit Card</option>
+                        <option value="Debit Card">Debit Card</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Mobile Payment">Mobile Payment</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button class="btn btn-secondary w-100" @onclick="ClearFilters">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card shadow-sm text-center">
-            <div class="card-body">
-                <h6 class="text-muted mb-1">Pending Payments</h6>
-                <h4 class="text-warning">8</h4>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card shadow-sm text-center">
-            <div class="card-body">
-                <h6 class="text-muted mb-1">Refunded</h6>
-                <h4 class="text-danger">3</h4>
-            </div>
+
+    <!-- Transactions Table -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (!filteredTransactions.Any())
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                    <p class="text-muted mt-3">No transactions found</p>
+                    <button class="btn btn-primary mt-2" @onclick="OpenCreateModal">
+                        <i class="bi bi-plus-circle me-2"></i>Add First Transaction
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Transaction #</th>
+                                <th>Date</th>
+                                <th>Patient Name</th>
+                                <th>Invoice #</th>
+                                <th>Amount</th>
+                                <th>Payment Method</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var transaction in filteredTransactions)
+                            {
+                                <tr>
+                                    <td><strong>@transaction.TransactionNumber</strong></td>
+                                    <td>@transaction.TransactionDate.ToString("MMM dd, yyyy")</td>
+                                    <td>
+                                        @if (transaction.Invoice?.Patient?.User != null)
+                                        {
+                                            <span>
+                                                @transaction.Invoice.Patient.User.FirstName
+                                                @transaction.Invoice.Patient.User.LastName
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">N/A</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (transaction.Invoice != null)
+                                        {
+                                            <span>@transaction.Invoice.InvoiceNumber</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">N/A</span>
+                                        }
+                                    </td>
+                                    <td><strong>@transaction.Amount.ToString("C")</strong></td>
+                                    <td>
+                                        <span class="badge bg-secondary">@transaction.PaymentMethod</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-@GetStatusColor(transaction.Status)">
+                                            @transaction.Status
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary"
+                                                    @onclick="() => ViewDetails(transaction)"
+                                                    title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            @if (transaction.Invoice != null)
+                                            {
+                                                <button class="btn btn-outline-info"
+                                                        @onclick="() => ViewInvoice(transaction.InvoiceId)"
+                                                        title="View Invoice">
+                                                    <i class="bi bi-receipt"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Info -->
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div class="text-muted">
+                        Showing @filteredTransactions.Count of @transactions.Count transactions
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </div>
 
-@* Filters *@
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-3">
-                <label for="search" class="form-label">Search</label>
-                <input id="search" type="text" class="form-control" placeholder="Patient or Invoice Number" />
-            </div>
-            <div class="col-md-3">
-                <label for="dateFrom" class="form-label">From</label>
-                <input id="dateFrom" type="date" class="form-control" />
-            </div>
-            <div class="col-md-3">
-                <label for="dateTo" class="form-label">To</label>
-                <input id="dateTo" type="date" class="form-control" />
-            </div>
-            <div class="col-md-2">
-                <label for="status" class="form-label">Status</label>
-                <select id="status" class="form-select">
-                    <option value="">All</option>
-                    <option>Paid</option>
-                    <option>Pending</option>
-                    <option>Refunded</option>
-                </select>
-            </div>
-            <div class="col-md-1 text-end">
-                <button class="btn btn-primary w-100">Filter</button>
+<!-- Create Transaction Modal -->
+@if (showCreateModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Transaction</h5>
+                    <button type="button" class="btn-close" @onclick="CloseCreateModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Invoice *</label>
+                        <select class="form-select" @bind="newTransaction.InvoiceId">
+                            <option value="0">Select Invoice</option>
+                            @foreach (var invoice in pendingInvoices)
+                            {
+                                <option value="@invoice.Id">
+                                    @invoice.InvoiceNumber -
+                                    @if (invoice.Patient?.User != null)
+                                    {
+                                        <text>@invoice.Patient.User.FirstName @invoice.Patient.User.LastName</text>
+                                    }
+                                    (@invoice.TotalAmount.ToString("C"))
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Amount *</label>
+                            <input type="number" class="form-control" @bind="newTransaction.Amount" step="0.01" min="0" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Transaction Date *</label>
+                            <input type="datetime-local" class="form-control" @bind="transactionDateTime" />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Payment Method *</label>
+                            <select class="form-select" @bind="newTransaction.PaymentMethod">
+                                <option value="Cash">Cash</option>
+                                <option value="Credit Card">Credit Card</option>
+                                <option value="Debit Card">Debit Card</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Mobile Payment">Mobile Payment</option>
+                                <option value="Check">Check</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status *</label>
+                            <select class="form-select" @bind="newTransaction.Status">
+                                <option value="Completed">Completed</option>
+                                <option value="Success">Success</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Failed">Failed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(modalErrorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            @modalErrorMessage
+                        </div>
+                    }
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseCreateModal">Cancel</button>
+                        <button type="button" class="btn btn-primary" @onclick="CreateTransaction" disabled="@isSaving">
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            Create Transaction
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
+}
 
-@*Transaction Table*@
-<div class="card shadow-sm">
-    <div class="card-body">
-        <table class="table table-hover align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Transaction ID</th>
-                    <th>Date</th>
-                    <th>Patient Name</th>
-                    <th>Invoice #</th>
-                    <th>Amount</th>
-                    <th>Payment Method</th>
-                    <th>Status</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>#TXN001</td>
-                    <td>2025-10-20</td>
-                    <td>Sapooth</td>
-                    <td>#INV-105</td>
-                    <td>$500</td>
-                    <td>Credit Card</td>
-                    <td><span class="badge bg-success">Paid</span></td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-2" @onclick="DetailsInvoice"><i class="bi bi-eye"></i></button>
-                        <button class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-printer"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>#TXN002</td>
-                    <td>2025-10-21</td>
-                    <td>John Doe</td>
-                    <td>#INV-106</td>
-                    <td>$750</td>
-                    <td>Cash</td>
-                    <td><span class="badge bg-warning text-dark">Pending</span></td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-2" @onclick="DetailsInvoice"><i class="bi bi-eye"></i></button>
-                        <button class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-printer"></i></button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+<!-- Details Modal -->
+@if (showDetailsModal && selectedTransaction != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Transaction Details</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDetailsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Transaction Number</label>
+                            <p class="fw-bold mb-0">@selectedTransaction.TransactionNumber</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Status</label>
+                            <p class="mb-0">
+                                <span class="badge bg-@GetStatusColor(selectedTransaction.Status)">
+                                    @selectedTransaction.Status
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Transaction Date</label>
+                            <p class="mb-0">@selectedTransaction.TransactionDate.ToString("MMMM dd, yyyy HH:mm")</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Amount</label>
+                            <p class="fw-bold text-success mb-0">@selectedTransaction.Amount.ToString("C")</p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Payment Method</label>
+                            <p class="mb-0">@selectedTransaction.PaymentMethod</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Invoice Number</label>
+                            <p class="mb-0">@(selectedTransaction.Invoice?.InvoiceNumber ?? "N/A")</p>
+                        </div>
+                    </div>
+
+                    @if (selectedTransaction.Invoice?.Patient?.User != null)
+                    {
+                        <hr />
+                        <h6>Patient Information</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="text-muted small">Name</label>
+                                <p class="mb-0">
+                                    @selectedTransaction.Invoice.Patient.User.FirstName
+                                    @selectedTransaction.Invoice.Patient.User.LastName
+                                </p>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="text-muted small">Contact</label>
+                                <p class="mb-0">@(selectedTransaction.Invoice.Patient.Contact ?? "N/A")</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetailsModal">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
+}
 
 @code {
-    private void DetailsInvoice()
+    private List<HMS.Models.Transaction> transactions = new();
+    private List<HMS.Models.Transaction> filteredTransactions = new();
+    private List<HMS.Models.Invoice> pendingInvoices = new();
+
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private string? modalErrorMessage;
+
+    // Statistics
+    private decimal totalRevenue = 0;
+    private int completedCount = 0;
+    private int pendingCount = 0;
+    private int refundedCount = 0;
+
+    // Filters
+    private string searchTerm = "";
+    private DateTime? fromDate;
+    private DateTime? toDate;
+    private string selectedStatus = "";
+    private string selectedPaymentMethod = "";
+
+    // Modals
+    private bool showCreateModal = false;
+    private bool showDetailsModal = false;
+    private HMS.Models.Transaction newTransaction = new();
+    private DateTime transactionDateTime = DateTime.Now;
+    private HMS.Models.Transaction? selectedTransaction;
+
+    protected override async Task OnInitializedAsync()
     {
-        Navigation.NavigateTo("/invoice/details");
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            transactions = await AdminService.GetAllTransactionsAsync();
+
+            // Load pending invoices for create modal
+            var allInvoices = await AdminService.GetAllInvoicesAsync();
+            pendingInvoices = allInvoices
+                .Where(i => i.Status == "Pending" || i.Status == "Unpaid")
+                .OrderByDescending(i => i.CreatedAt)
+                .ToList();
+
+            // Load statistics
+            totalRevenue = await AdminService.GetTotalTransactionAmountAsync();
+            completedCount = transactions.Count(t => t.Status == "Completed" || t.Status == "Success");
+            pendingCount = transactions.Count(t => t.Status == "Pending");
+            refundedCount = transactions.Count(t => t.Status == "Refunded");
+
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading data: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        filteredTransactions = transactions.ToList();
+
+        // Search filter
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            filteredTransactions = filteredTransactions
+                .Where(t =>
+                    (t.TransactionNumber?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (t.Invoice?.Patient?.User?.FirstName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (t.Invoice?.Patient?.User?.LastName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
+                .ToList();
+        }
+
+        // Date filters
+        if (fromDate.HasValue)
+        {
+            filteredTransactions = filteredTransactions
+                .Where(t => t.TransactionDate.Date >= fromDate.Value.Date)
+                .ToList();
+        }
+
+        if (toDate.HasValue)
+        {
+            filteredTransactions = filteredTransactions
+                .Where(t => t.TransactionDate.Date <= toDate.Value.Date)
+                .ToList();
+        }
+
+        // Status filter
+        if (!string.IsNullOrEmpty(selectedStatus))
+        {
+            filteredTransactions = filteredTransactions
+                .Where(t => t.Status == selectedStatus)
+                .ToList();
+        }
+
+        // Payment method filter
+        if (!string.IsNullOrEmpty(selectedPaymentMethod))
+        {
+            filteredTransactions = filteredTransactions
+                .Where(t => t.PaymentMethod == selectedPaymentMethod)
+                .ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    private void ClearFilters()
+    {
+        searchTerm = "";
+        fromDate = null;
+        toDate = null;
+        selectedStatus = "";
+        selectedPaymentMethod = "";
+        ApplyFilters();
+    }
+
+    private void OpenCreateModal()
+    {
+        newTransaction = new HMS.Models.Transaction
+        {
+            Status = "Completed",
+            PaymentMethod = "Cash",
+            Amount = 0
+        };
+        transactionDateTime = DateTime.Now;
+        modalErrorMessage = null;
+        showCreateModal = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        showCreateModal = false;
+        newTransaction = new();
+        modalErrorMessage = null;
+    }
+
+    private async Task CreateTransaction()
+    {
+        try
+        {
+            isSaving = true;
+            modalErrorMessage = null;
+
+            if (newTransaction.InvoiceId == 0)
+            {
+                modalErrorMessage = "Please select an invoice";
+                return;
+            }
+
+            if (newTransaction.Amount <= 0)
+            {
+                modalErrorMessage = "Amount must be greater than zero";
+                return;
+            }
+
+            newTransaction.TransactionDate = transactionDateTime;
+            await AdminService.CreateTransactionAsync(newTransaction);
+
+            successMessage = "Transaction created successfully";
+            CloseCreateModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = $"Error creating transaction: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void ViewDetails(HMS.Models.Transaction transaction)
+    {
+        selectedTransaction = transaction;
+        showDetailsModal = true;
+    }
+
+    private void CloseDetailsModal()
+    {
+        showDetailsModal = false;
+        selectedTransaction = null;
+    }
+
+    private void ViewInvoice(int invoiceId)
+    {
+        NavigationManager.NavigateTo($"/invoice/details/{invoiceId}");
+    }
+
+    private string GetStatusColor(string? status)
+    {
+        return status switch
+        {
+            "Completed" or "Success" => "success",
+            "Pending" => "warning",
+            "Failed" => "danger",
+            "Refunded" => "secondary",
+            _ => "secondary"
+        };
     }
 }

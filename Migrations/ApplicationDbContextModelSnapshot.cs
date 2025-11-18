@@ -194,8 +194,7 @@ namespace HMS.Migrations
 
                     b.Property<string>("Reason")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("StaffId")
                         .HasColumnType("int");
@@ -484,9 +483,6 @@ namespace HMS.Migrations
                     b.Property<string>("Bankdetails")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal>("ConsultationFee")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("ContractForm")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -502,12 +498,6 @@ namespace HMS.Migrations
 
                     b.Property<decimal>("HourlyRate")
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<bool>("IsAcceptingPatients")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("MaxDailyAppointments")
-                        .HasColumnType("int");
 
                     b.Property<string>("Specialization")
                         .HasMaxLength(100)
@@ -784,9 +774,9 @@ namespace HMS.Migrations
             modelBuilder.Entity("HMS.Models.AppointmentBlock", b =>
                 {
                     b.HasOne("HMS.Models.Staff", "Staff")
-                        .WithMany("AppointmentBlocks")
+                        .WithMany()
                         .HasForeignKey("StaffId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Staff");
@@ -801,7 +791,7 @@ namespace HMS.Migrations
                         .IsRequired();
 
                     b.HasOne("HMS.Models.Staff", "Staff")
-                        .WithMany("AppointmentSlots")
+                        .WithMany()
                         .HasForeignKey("StaffId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -814,9 +804,9 @@ namespace HMS.Migrations
             modelBuilder.Entity("HMS.Models.AppointmentSlotConfiguration", b =>
                 {
                     b.HasOne("HMS.Models.Staff", "Staff")
-                        .WithMany("SlotConfigurations")
+                        .WithMany()
                         .HasForeignKey("StaffId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Staff");
@@ -1006,15 +996,9 @@ namespace HMS.Migrations
 
             modelBuilder.Entity("HMS.Models.Staff", b =>
                 {
-                    b.Navigation("AppointmentBlocks");
-
-                    b.Navigation("AppointmentSlots");
-
                     b.Navigation("Appointments");
 
                     b.Navigation("Schedules");
-
-                    b.Navigation("SlotConfigurations");
 
                     b.Navigation("TimeReports");
                 });

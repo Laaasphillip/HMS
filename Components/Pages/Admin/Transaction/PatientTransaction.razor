@@ -1,0 +1,311 @@
+﻿@page "/transaction/patient"
+@using HMS.Models
+@using HMS.Services
+@using Microsoft.AspNetCore.Authorization
+@inject AdminService AdminService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Policy = "PatientOnly")]
+@rendermode InteractiveServer
+
+<PageTitle>My Payments - HMS</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2>💳 My Payment History</h2>
+            <p class="text-muted">View all your transactions and payments</p>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-2">Total Paid</h6>
+                        <h3 class="text-success mb-0">@totalPaid.ToString("C")</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-2">Pending</h6>
+                        <h3 class="text-warning mb-0">@totalPending.ToString("C")</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-2">Last Payment</h6>
+                        <h3 class="text-primary mb-0">
+                            @if (lastPaymentDate.HasValue)
+                            {
+                                <span>@lastPaymentDate.Value.ToString("MMM dd")</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">None</span>
+                            }
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-2">Transactions</h6>
+                        <h3 class="text-info mb-0">@transactions.Count</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        @if (pendingInvoices.Any())
+        {
+            <div class="alert alert-warning d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>You have @pendingInvoices.Count pending invoice(s)</strong>
+                </div>
+                <button class="btn btn-warning btn-sm" @onclick='() => NavigationManager.NavigateTo("/invoice")'>
+                    View Invoices
+                </button>
+            </div>
+        }
+
+        <!-- Transactions List -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                @if (!filteredTransactions.Any())
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                        <p class="text-muted mt-3">No transactions found</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var transaction in filteredTransactions)
+                        {
+                            <div class="list-group-item px-0 py-3">
+                                <div class="row align-items-center">
+                                    <div class="col-md-2">
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                                                <i class="bi bi-credit-card text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <small class="text-muted d-block">@transaction.TransactionDate.ToString("MMM dd, yyyy")</small>
+                                                <small class="text-muted">@transaction.TransactionDate.ToString("HH:mm")</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <strong>@transaction.TransactionNumber</strong>
+                                        <p class="mb-0 small text-muted">@transaction.Invoice?.InvoiceNumber</p>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <span class="badge bg-secondary">@transaction.PaymentMethod</span>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <span class="badge bg-@GetStatusColor(transaction.Status)">@transaction.Status</span>
+                                    </div>
+                                    <div class="col-md-2 text-end">
+                                        <h5 class="mb-0">@transaction.Amount.ToString("C")</h5>
+                                    </div>
+                                    <div class="col-md-1 text-end">
+                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewDetails(transaction)">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="mt-3 text-muted">
+                        Showing @filteredTransactions.Count of @transactions.Count transactions
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Details Modal -->
+@if (showDetailsModal && selectedTransaction != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Payment Details</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDetailsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="text-muted small">Transaction Number</label>
+                        <p class="fw-bold">@selectedTransaction.TransactionNumber</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small">Amount Paid</label>
+                        <p class="fw-bold text-success">@selectedTransaction.Amount.ToString("C")</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small">Payment Date</label>
+                        <p>@selectedTransaction.TransactionDate.ToString("MMMM dd, yyyy HH:mm")</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small">Payment Method</label>
+                        <p>@selectedTransaction.PaymentMethod</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small">Status</label>
+                        <p><span class="badge bg-@GetStatusColor(selectedTransaction.Status)">@selectedTransaction.Status</span></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small">Invoice Number</label>
+                        <p>@selectedTransaction.Invoice?.InvoiceNumber</p>
+                    </div>
+                    @if (selectedTransaction.Invoice?.Appointment != null)
+                    {
+                        <div class="mb-3">
+                            <label class="text-muted small">Appointment</label>
+                            <p>
+                                @selectedTransaction.Invoice.Appointment.AppointmentDate.ToString("MMMM dd, yyyy")
+                                with Dr. @selectedTransaction.Invoice.Appointment.Staff?.User?.LastName
+                            </p>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetailsModal">Close</button>
+                    @if (selectedTransaction.Invoice != null)
+                    {
+                        <button type="button" class="btn btn-primary"
+                                @onclick='() => NavigationManager.NavigateTo($"/invoice/details/{selectedTransaction.InvoiceId}")'>
+                            View Invoice
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Transaction> transactions = new();
+    private List<Transaction> filteredTransactions = new();
+    private List<Invoice> pendingInvoices = new();
+    private bool isLoading = true;
+    private int currentPatientId;
+
+    private decimal totalPaid = 0;
+    private decimal totalPending = 0;
+    private DateTime? lastPaymentDate;
+
+    private DateTime? fromDate;
+    private DateTime? toDate;
+    private string selectedStatus = "";
+
+    private bool showDetailsModal = false;
+    private Transaction? selectedTransaction;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                var allPatients = await AdminService.GetAllPatientsAsync();
+                var currentPatient = allPatients.FirstOrDefault(p => p.UserId == userId);
+
+                if (currentPatient != null)
+                {
+                    currentPatientId = currentPatient.Id;
+
+                    // Get transactions for this patient
+                    transactions = await AdminService.GetTransactionsByPatientIdAsync(currentPatientId);
+                    transactions = transactions.OrderByDescending(t => t.TransactionDate).ToList();
+
+                    // Get pending invoices
+                    var allInvoices = await AdminService.GetAllInvoicesAsync();
+                    pendingInvoices = allInvoices
+                        .Where(i => i.PatientId == currentPatientId &&
+                                   (i.Status == "Pending" || i.Status == "Unpaid"))
+                        .ToList();
+
+                    // Calculate statistics
+                    totalPaid = transactions
+                        .Where(t => t.Status == "Completed" || t.Status == "Success")
+                        .Sum(t => t.Amount);
+
+                    totalPending = pendingInvoices.Sum(i => i.TotalAmount);
+
+                    var lastPayment = transactions
+                        .Where(t => t.Status == "Completed" || t.Status == "Success")
+                        .OrderByDescending(t => t.TransactionDate)
+                        .FirstOrDefault();
+
+                    lastPaymentDate = lastPayment?.TransactionDate;
+                }
+            }
+            filteredTransactions = transactions.ToList();
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ViewDetails(Transaction transaction)
+    {
+        selectedTransaction = transaction;
+        showDetailsModal = true;
+    }
+
+    private void CloseDetailsModal()
+    {
+        showDetailsModal = false;
+        selectedTransaction = null;
+    }
+
+    private string GetStatusColor(string? status)
+    {
+        return status switch
+        {
+            "Completed" or "Success" => "success",
+            "Pending" => "warning",
+            "Failed" => "danger",
+            "Refunded" => "secondary",
+            _ => "secondary"
+        };
+    }
+}
