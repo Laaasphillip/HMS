@@ -15,8 +15,4 @@
     <PackageReference Include="Radzen.Blazor" Version="8.1.5" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Data\Migrations\" />
-  </ItemGroup>
-
 </Project>

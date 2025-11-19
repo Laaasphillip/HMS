@@ -1,112 +1,352 @@
-﻿﻿
-@page "/invoice"
+﻿@page "/invoice"
 @using HMS.Models
 @using HMS.Services
+@using Microsoft.AspNetCore.Authorization
 @inject AdminService AdminService
 @inject NavigationManager Navigation
+@attribute [Authorize(Policy = "AdminOrStaff")]
 @rendermode InteractiveServer
 
-<h3>Invoice</h3>
+<PageTitle>Invoices - HMS</PageTitle>
 
-<main class="col-12 col-md-9 col-lg-10 py-4">
-    <header class="d-flex justify-content-between align-items-center mb-4">
-        <div class="d-flex align-items-center gap-3">
-            <div class="d-none d-sm-flex align-items-center gap-2">
-                <span class="profile-icon rounded-circle bg-secondary d-inline-block" style="width:36px;height:36px"></span>
-                <span class="profile-name">Admin Dashboard</span>
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>📄 Invoice Management</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Invoices</li>
+                </ol>
+            </nav>
+        </div>
+        <button class="btn btn-primary" @onclick="NavigateToCreateInvoice">
+            <i class="bi bi-plus-circle"></i> Create Invoice
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Total Invoices</h6>
+                    <h3 class="mb-0">@invoices.Count</h3>
+                </div>
             </div>
         </div>
-
-        <button class="btn btn-primary" @onclick="NavigateToCreateInvoice">
-            <i class="bi bi-plus-lg"></i> Create Invoice
-        </button>
-    </header>
-
-    <section class="content-area">
-        <!-- Recent Invoices Table -->
-        <section class="recent-invoice-section mb-5" aria-labelledby="recent-invoice-heading">
-            <div class="mb-3">
-                <h2 id="recent-invoice-heading" class="h5 mb-1">All Invoices</h2>
-                <p class="text-muted small mb-0">All invoices linked to patients and appointments.</p>
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Pending</h6>
+                    <h3 class="text-warning mb-0">@invoices.Count(i => i.Status == "Pending" || i.Status == "Unpaid")</h3>
+                </div>
             </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Paid</h6>
+                    <h3 class="text-success mb-0">@invoices.Count(i => i.Status == "Paid")</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Total Amount</h6>
+                    <h3 class="text-primary mb-0">@invoices.Sum(i => i.TotalAmount).ToString("C")</h3>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            <div class="table-responsive shadow-sm bg-white rounded">
-                <table class="table table-hover mb-0 align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>ID</th>
-                            <th>Invoice No.</th>
-                            <th>Patient</th>
-                            <th>Appointment ID</th>
-                            <th>Total Amount</th>
-                            <th>Status</th>
-                            <th class="text-end">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (invoices == null)
-                        {
+    <!-- Filters -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" placeholder="Patient name or invoice #"
+                           @bind="searchTerm" @bind:event="oninput" @bind:after="ApplyFilters" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" @bind="selectedStatus" @bind:after="ApplyFilters">
+                        <option value="">All</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Unpaid">Unpaid</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Partially Paid">Partially Paid</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">From Date</label>
+                    <input type="date" class="form-control" @bind="fromDate" @bind:after="ApplyFilters" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">To Date</label>
+                    <input type="date" class="form-control" @bind="toDate" @bind:after="ApplyFilters" />
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button class="btn btn-secondary w-100" @onclick="ClearFilters">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoices Table -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                </div>
+            }
+            else if (!filteredInvoices.Any())
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                    <p class="text-muted mt-3">No invoices found</p>
+                    <button class="btn btn-primary" @onclick="NavigateToCreateInvoice">
+                        <i class="bi bi-plus-circle me-2"></i>Create First Invoice
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
                             <tr>
-                                <td colspan="7" class="text-center">Loading invoices...</td>
+                                <th>Invoice #</th>
+                                <th>Date</th>
+                                <th>Patient</th>
+                                <th>Appointment</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Due Date</th>
+                                <th class="text-end">Actions</th>
                             </tr>
-                        }
-                        else if (!invoices.Any())
-                        {
-                            <tr>
-                                <td colspan="7" class="text-center">No invoices found.</td>
-                            </tr>
-                        }
-                        else
-                        {
-                            @foreach (var invoice in invoices)
+                        </thead>
+                        <tbody>
+                            @foreach (var invoice in filteredInvoices)
                             {
                                 <tr>
-                                    <td>@invoice.Id</td>
-                                    <td>@invoice.InvoiceNumber</td>
-                                    <td>@(invoice.Appointment?.Patient?.User?.FirstName) @(invoice.Appointment?.Patient?.User?.LastName)</td>
-                                    <td>@invoice.AppointmentId</td>
-                                    <td>@invoice.TotalAmount.ToString("C")</td>
-                                    <td>@invoice.Status</td>
+                                    <td><strong>@invoice.InvoiceNumber</strong></td>
+                                    <td>@invoice.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                    <td>
+                                        @if (invoice.Patient?.User != null)
+                                        {
+                                            <span>@invoice.Patient.User.FirstName @invoice.Patient.User.LastName</span>
+                                        }
+                                        else if (invoice.Appointment?.Patient?.User != null)
+                                        {
+                                            <span>@invoice.Appointment.Patient.User.FirstName @invoice.Appointment.Patient.User.LastName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">N/A</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (invoice.Appointment != null)
+                                        {
+                                            <span>@invoice.Appointment.AppointmentDate.ToString("MMM dd")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">N/A</span>
+                                        }
+                                    </td>
+                                    <td><strong>@invoice.TotalAmount.ToString("C")</strong></td>
+                                    <td>
+                                        <span class="badge bg-@GetStatusColor(invoice.Status)">
+                                            @invoice.Status
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (invoice.DueDate < DateTime.Now && invoice.Status != "Paid")
+                                        {
+                                            <span class="text-danger">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                                @invoice.DueDate.ToString("MMM dd, yyyy")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span>@invoice.DueDate.ToString("MMM dd, yyyy")</span>
+                                        }
+                                    </td>
                                     <td class="text-end">
-                                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => PayInvoice(invoice.Id)">Pay</button>
-                                        <button class="btn btn-sm btn-outline-info me-1" @onclick="() => ViewInvoiceDetails(invoice.Id)">Details</button>
-                                        <button class="btn btn-sm btn-outline-warning me-1" @onclick="() => EditInvoice(invoice.Id)">Edit</button>
-                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteInvoice(invoice.Id)">Delete</button>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary"
+                                                    @onclick="() => ViewInvoiceDetails(invoice.Id)"
+                                                    title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-info"
+                                                    @onclick="() => EditInvoice(invoice.Id)"
+                                                    title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger"
+                                                    @onclick="() => OpenDeleteModal(invoice)"
+                                                    title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3 text-muted">
+                    Showing @filteredInvoices.Count of @invoices.Count invoices
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal && deletingInvoice != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete invoice <strong>@deletingInvoice.InvoiceNumber</strong>?</p>
+                    <p class="text-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        This action cannot be undone.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isDeleting">
+                        @if (isDeleting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
                         }
-                    </tbody>
-                </table>
+                        Delete
+                    </button>
+                </div>
             </div>
-        </section>
-    </section>
-</main>
+        </div>
+    </div>
+}
 
 @code {
-    private List<Invoice>? invoices;
+    private List<Invoice> invoices = new();
+    private List<Invoice> filteredInvoices = new();
+    private bool isLoading = true;
+    private bool isDeleting = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    // Filters
+    private string searchTerm = "";
+    private string selectedStatus = "";
+    private DateTime? fromDate;
+    private DateTime? toDate;
+
+    // Delete modal
+    private bool showDeleteModal = false;
+    private Invoice? deletingInvoice;
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
         try
         {
+            isLoading = true;
             invoices = await AdminService.GetAllInvoicesAsync();
+            ApplyFilters();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error fetching invoices: {ex.Message}");
-            invoices = new List<Invoice>();
+            errorMessage = $"Error loading invoices: {ex.Message}";
         }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        filteredInvoices = invoices.ToList();
+
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            filteredInvoices = filteredInvoices.Where(i =>
+                (i.InvoiceNumber?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (i.Patient?.User?.FirstName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (i.Patient?.User?.LastName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (i.Appointment?.Patient?.User?.FirstName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (i.Appointment?.Patient?.User?.LastName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+            ).ToList();
+        }
+
+        if (!string.IsNullOrEmpty(selectedStatus))
+        {
+            filteredInvoices = filteredInvoices.Where(i => i.Status == selectedStatus).ToList();
+        }
+
+        if (fromDate.HasValue)
+        {
+            filteredInvoices = filteredInvoices.Where(i => i.CreatedAt.Date >= fromDate.Value.Date).ToList();
+        }
+
+        if (toDate.HasValue)
+        {
+            filteredInvoices = filteredInvoices.Where(i => i.CreatedAt.Date <= toDate.Value.Date).ToList();
+        }
+    }
+
+    private void ClearFilters()
+    {
+        searchTerm = "";
+        selectedStatus = "";
+        fromDate = null;
+        toDate = null;
+        ApplyFilters();
     }
 
     private void NavigateToCreateInvoice()
     {
         Navigation.NavigateTo("/invoice/create");
-    }
-
-    private void PayInvoice(int id)
-    {
-        Navigation.NavigateTo($"/invoice/transaction/{id}");
     }
 
     private void ViewInvoiceDetails(int id)
@@ -119,8 +359,49 @@
         Navigation.NavigateTo($"/invoice/edit/{id}");
     }
 
-    private async Task DeleteInvoice(int id)
+    private void OpenDeleteModal(Invoice invoice)
     {
-        Console.WriteLine($"Delete invoice {id}");
+        deletingInvoice = invoice;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        deletingInvoice = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (deletingInvoice == null) return;
+
+        try
+        {
+            isDeleting = true;
+            await AdminService.DeleteInvoiceAsync(deletingInvoice.Id);
+            successMessage = $"Invoice {deletingInvoice.InvoiceNumber} deleted successfully";
+            CloseDeleteModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting invoice: {ex.Message}";
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    private string GetStatusColor(string? status)
+    {
+        return status switch
+        {
+            "Paid" => "success",
+            "Pending" or "Unpaid" => "warning",
+            "Partially Paid" => "info",
+            "Cancelled" => "danger",
+            _ => "secondary"
+        };
     }
 }

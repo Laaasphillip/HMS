@@ -105,7 +105,7 @@ main {
     main article.content {
         margin: 2.5rem auto;
         padding: 3rem;
-        max-width: 1400px;
+        max-width: 100%;
     }
 }
 
