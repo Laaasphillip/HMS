@@ -2,7 +2,7 @@
   "dependencies": {
     "mssql1": {
       "type": "mssql",
-      "connectionId": "ConnectionStrings:DefaultConnection"
+      "connectionId": "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=aspnet-HMS-a1ff733f-9381-4329-83e7-ec0869fe109a;Integrated Security=True;Connect Timeout=30;Encrypt=False;Trust Server Certificate=False;Application Intent=ReadWrite;Multi Subnet Failover=False"
     }
   }
 }

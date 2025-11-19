@@ -1,98 +1,344 @@
 ﻿@page "/admin/timereport/index"
 @using HMS.Models
+@using HMS.Services
+@inject AdminService AdminService
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
-<h3>🕒 Admin Time Reports</h3>
+<PageTitle>Time Reports - Admin</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <button class="btn btn-success" @onclick="CreateNewReport">+ Add Time Report</button>
-    <input class="form-control w-25" placeholder="Search by Staff ID..." @bind="searchQuery" />
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-clock-history"></i> Time Reports</h3>
+        <button class="btn btn-success" @onclick="CreateNewReport">
+            <i class="bi bi-plus-circle"></i> Add Time Report
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading time reports...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> @errorMessage
+        </div>
+    }
+    else
+    {
+        <!-- Filter och sökning -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <input class="form-control"
+                       placeholder="🔍 Search by staff name or activity..."
+                       @bind="searchQuery"
+                       @bind:event="oninput" />
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" @bind="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="active">Active Only</option>
+                    <option value="completed">Completed Only</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-outline-secondary w-100" @onclick="LoadReports">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Statistik -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Reports</h5>
+                        <h2>@Reports.Count</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Active</h5>
+                        <h2>@Reports.Count(r => r.ClockOut == null)</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Completed</h5>
+                        <h2>@Reports.Count(r => r.ClockOut != null)</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-dark">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Hours</h5>
+                        <h2>@Reports.Sum(r => r.HoursWorked).ToString("F1")</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabell -->
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Staff</th>
+                        <th>Clock In</th>
+                        <th>Clock Out</th>
+                        <th>Hours</th>
+                        <th>Activity</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (FilteredReports.Any())
+                    {
+                        @foreach (var report in FilteredReports)
+                        {
+                            <tr>
+                                <td><strong>#@report.Id</strong></td>
+                                <td>
+                                    @if (report.Staff?.User != null)
+                                    {
+                                        <div>
+                                            <strong>@report.Staff.User.FirstName @report.Staff.User.LastName</strong>
+                                            <br />
+                                            <small class="text-muted">@report.Staff.Department</small>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Staff ID: @report.StaffId</span>
+                                    }
+                                </td>
+                                <td>
+                                    <i class="bi bi-calendar"></i> @report.ClockIn.ToString("yyyy-MM-dd")
+                                    <br />
+                                    <i class="bi bi-clock"></i> @report.ClockIn.ToString("HH:mm")
+                                </td>
+                                <td>
+                                    @if (report.ClockOut.HasValue)
+                                    {
+                                        <div>
+                                            <i class="bi bi-calendar"></i> @report.ClockOut.Value.ToString("yyyy-MM-dd")
+                                            <br />
+                                            <i class="bi bi-clock"></i> @report.ClockOut.Value.ToString("HH:mm")
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">Currently Working</span>
+                                    }
+                                </td>
+                                <td>
+                                    <strong>@report.HoursWorked.ToString("F2")</strong> hrs
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">@report.ActivityType</span>
+                                </td>
+                                <td>
+                                    @if (report.ClockOut == null)
+                                    {
+                                        <span class="badge bg-success">🟢 Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">✅ Completed</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm btn-outline-primary"
+                                                @onclick="() => ViewReport(report.Id)"
+                                                title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-warning"
+                                                @onclick="() => EditReport(report.Id)"
+                                                title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => ConfirmDelete(report.Id)"
+                                                title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                <p class="mb-0">No time reports found matching your criteria.</p>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
 </div>
 
-<table class="table table-striped table-bordered align-middle">
-    <thead class="table-dark">
-        <tr>
-            <th>ID</th>
-            <th>Staff ID</th>
-            <th>Clock In</th>
-            <th>Clock Out</th>
-            <th>Hours Worked</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (FilteredReports.Any())
-        {
-            @foreach (var report in FilteredReports)
-            {
-                <tr>
-                    <td>@report.Id</td>
-                    <td>@report.StaffId</td>
-                    <td>@report.ClockIn.ToString("g")</td>
-@*                     <td>@report.ClockOut.ToString("g")</td> *@
-                    <td>@report.HoursWorked</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary me-2"
-                                @onclick="() => ViewReport(report.Id)">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-warning me-2"
-                                @onclick="() => EditReport(report.Id)">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger"
-                                @onclick="() => DeleteReport(report.Id)">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            }
-        }
-        else
-        {
-            <tr>
-                <td colspan="6" class="text-center text-muted">No time reports found.</td>
-            </tr>
-        }
-    </tbody>
-</table>
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this time report?</p>
+                    <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteReport">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private List<TimeReport> Reports = new();
     private string searchQuery = "";
+    private string statusFilter = "";
+    private bool isLoading = false;
+    private string errorMessage = "";
+    private bool showDeleteModal = false;
+    private int reportToDelete = 0;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        Reports = new List<TimeReport>
-        {
-            new() { Id = 1, StaffId = 101, ClockIn = DateTime.Now.AddHours(-8), ClockOut = DateTime.Now, HoursWorked = 8 },
-            new() { Id = 2, StaffId = 102, ClockIn = DateTime.Now.AddHours(-7), ClockOut = DateTime.Now, HoursWorked = 7 }
-        };
+        await LoadReports();
     }
 
-    private IEnumerable<TimeReport> FilteredReports =>
-        string.IsNullOrWhiteSpace(searchQuery)
-            ? Reports
-            : Reports.Where(r => r.StaffId.ToString().Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+    private async Task LoadReports()
+    {
+        isLoading = true;
+        errorMessage = "";
+
+        try
+        {
+            Reports = await AdminService.GetAllTimeReportsAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            errorMessage = $"Access Denied: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading time reports: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private IEnumerable<TimeReport> FilteredReports
+    {
+        get
+        {
+            var filtered = Reports.AsEnumerable();
+
+            // Filter by search query
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                filtered = filtered.Where(r =>
+                    (r.Staff?.User?.FirstName?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (r.Staff?.User?.LastName?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (r.ActivityType?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    r.StaffId.ToString().Contains(searchQuery)
+                );
+            }
+
+            // Filter by status
+            if (!string.IsNullOrWhiteSpace(statusFilter))
+            {
+                if (statusFilter == "active")
+                    filtered = filtered.Where(r => r.ClockOut == null);
+                else if (statusFilter == "completed")
+                    filtered = filtered.Where(r => r.ClockOut != null);
+            }
+
+            return filtered.OrderByDescending(r => r.ClockIn);
+        }
+    }
 
     private void CreateNewReport()
     {
-        Navigation.NavigateTo("/timereport/index");
+        Navigation.NavigateTo("/admin/timereport/create");
     }
 
     private void ViewReport(int id)
     {
-        Navigation.NavigateTo("/timereport/index");
+        Navigation.NavigateTo($"/admin/timereport/details/{id}");
     }
 
     private void EditReport(int id)
     {
-        Navigation.NavigateTo($"/admin/timereports/edit/{id}");
+        Navigation.NavigateTo($"/admin/timereport/edit/{id}");
     }
 
-    private void DeleteReport(int id)
+    private void ConfirmDelete(int id)
     {
-        Reports.RemoveAll(r => r.Id == id);
+        reportToDelete = id;
+        showDeleteModal = true;
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteModal = false;
+        reportToDelete = 0;
+    }
+
+    private async Task DeleteReport()
+    {
+        try
+        {
+            var result = await AdminService.DeleteTimeReportAsync(reportToDelete);
+
+            if (result.Success)
+            {
+                await LoadReports();
+                showDeleteModal = false;
+                reportToDelete = 0;
+            }
+            else
+            {
+                errorMessage = result.Message;
+                showDeleteModal = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting report: {ex.Message}";
+            showDeleteModal = false;
+        }
     }
 }

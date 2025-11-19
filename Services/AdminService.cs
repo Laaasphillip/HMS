@@ -46,6 +46,201 @@ namespace HMS.Services
                 throw new UnauthorizedAccessException($"User with role '{role}' is not authorized to {operation}");
             }
         }
+        //TIME REPORT
+
+        public async Task<List<TimeReport>> GetAllTimeReportsAsync()
+        {
+            await EnsureAuthorizedAsync("AdminOnly", "view all time reports");
+
+            return await _context.TimeReports
+        .Include(tr => tr.Staff)
+            .ThenInclude(s => s.User)
+        .Include(tr => tr.Schedule)
+        .OrderByDescending(tr => tr.ClockIn)
+        .ToListAsync();
+
+        }
+
+        public async Task<TimeReport?> GetTimeReportByIdAsync(int id)
+        {
+            await EnsureAuthorizedAsync("AdminOnly", "view time report");
+
+            return await _context.TimeReports
+                .Include(tr => tr.Staff)
+                    .ThenInclude(s => s.User)
+                .Include(tr => tr.Schedule)
+                .FirstOrDefaultAsync(tr => tr.Id == id);
+        }
+        public async Task<(bool Success, string Message)> DeleteTimeReportAsync(int id)
+        {
+            try
+            {
+                // Check authorization - only Admin can delete time reports
+                await EnsureAuthorizedAsync("AdminOnly", "delete time report");
+
+                // Find the time report
+                var timeReport = await _context.TimeReports.FindAsync(id);
+
+                if (timeReport == null)
+                    return (false, "Time report not found");
+
+                // Remove the time report
+                _context.TimeReports.Remove(timeReport);
+                await _context.SaveChangesAsync();
+
+                return (true, "Time report deleted successfully");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return (false, $"Access Denied: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Error deleting time report: {ex.Message}");
+            }
+        }
+        public async Task<(bool Success, string Message, TimeReport? TimeReport)> CreateTimeReportAsync(
+             int staffId,
+             int? scheduleId,
+             DateTime clockIn,
+             DateTime? clockOut,
+             string activityType,
+             string notes ="")
+        {
+            try
+            {
+                // Check authorization - Admin or Staff can create time reports
+                await EnsureAuthorizedAsync("AdminOrStaff", "create time report");
+
+                // Validate that the staff member exists
+                var staffExists = await _context.Staff.AnyAsync(s => s.Id == staffId);
+                if (!staffExists)
+                    return (false, "Staff member not found", null);
+
+                // Validate schedule if provided
+                if (scheduleId.HasValue)
+                {
+                    var scheduleExists = await _context.Schedules.AnyAsync(s => s.Id == scheduleId.Value);
+                    if (!scheduleExists)
+                        return (false, "Schedule not found", null);
+                }
+                // Calculations hours worked
+                decimal hoursWorked = 0;
+                if (clockOut.HasValue)
+                {
+                    var duration = clockOut.Value - clockIn;
+                    hoursWorked = (decimal)duration.TotalHours;
+                }
+                //Creating timereport
+                var timeReport = new TimeReport
+                {
+                    StaffId = staffId,
+                    ScheduleId = scheduleId,
+                    ClockIn = clockIn,
+                    ClockOut = clockOut,
+                    HoursWorked = hoursWorked,
+                    ActivityType = activityType,
+                    Notes = notes,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.TimeReports.Add(timeReport);
+                await _context.SaveChangesAsync();
+
+                // Load navigation properties
+                await _context.Entry(timeReport)
+                    .Reference(tr => tr.Staff)
+                    .LoadAsync();
+
+                if (timeReport.Staff != null)
+                {
+                    await _context.Entry(timeReport.Staff)
+                        .Reference(s => s.User)
+                        .LoadAsync();
+                }
+                if (scheduleId.HasValue)
+                {
+                    await _context.Entry(timeReport)
+                        .Reference(tr => tr.Schedule)
+                        .LoadAsync();
+                }
+
+                return (true, "Time report created successfully", timeReport);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return (false, $"Access Denied: {ex.Message}", null);
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Error creating time report: {ex.Message}", null);
+            }
+        }
+
+        public async Task<(bool Success, string Message)> UpdateTimeReportAsync(TimeReport timeReport)
+        {
+            try
+            {
+                // Check authorization - Admin or Staff can update time reports
+                await EnsureAuthorizedAsync("AdminOrStaff", "update time report");
+
+                // Validate that the time report exists
+                var existingReport = await _context.TimeReports.FindAsync(timeReport.Id);
+                if (existingReport == null)
+                    return (false, "Time report not found");
+
+                // Validate that the staff member exists
+                var staffExists = await _context.Staff.AnyAsync(s => s.Id == timeReport.StaffId);
+                if (!staffExists)
+                    return (false, "Staff member not found");
+
+                // Validate schedule if provided
+                if (timeReport.ScheduleId.HasValue)
+                {
+                    var scheduleExists = await _context.Schedules.AnyAsync(s => s.Id == timeReport.ScheduleId.Value);
+                    if (!scheduleExists)
+                        return (false, "Schedule not found");
+                }
+
+                // Recalculate hours worked 
+                if (timeReport.ClockOut.HasValue)
+                {
+                    var duration = timeReport.ClockOut.Value - timeReport.ClockIn;
+                    timeReport.HoursWorked = (decimal)duration.TotalHours;
+                }
+                else
+                {
+                    timeReport.HoursWorked = 0;
+                }
+
+                // Update the time report
+                existingReport.StaffId = timeReport.StaffId;
+                existingReport.ScheduleId = timeReport.ScheduleId;
+                existingReport.ClockIn = timeReport.ClockIn;
+                existingReport.ClockOut = timeReport.ClockOut;
+                existingReport.HoursWorked = timeReport.HoursWorked;
+                existingReport.ActivityType = timeReport.ActivityType;
+                existingReport.Notes = timeReport.Notes;
+
+                _context.TimeReports.Update(existingReport);
+                await _context.SaveChangesAsync();
+
+                return (true, "Time report updated successfully");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return (false, $"Access Denied: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Error updating time report: {ex.Message}");
+            }
+        }
+
+             
+
+
+
+
 
 
         #region Patient Management

@@ -1,0 +1,398 @@
+﻿@page "/admin/timereport/edit/{id:int}"
+@using HMS.Models
+@using HMS.Services
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@attribute [Authorize(Policy = "AdminOnly")]
+@inject AdminService AdminService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Edit Time Report</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="bi bi-pencil me-2"></i>
+                        Edit Time Report #@Id
+                    </h4>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMessage
+                            <button type="button" class="btn-close" @onclick="ClearError"></button>
+                        </div>
+                    }
+
+                    @if (loading)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (timeReport == null)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i> Time report not found.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row">
+                            <!-- Staff Selection -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Staff Member *</label>
+                                <select class="form-select" @bind="timeReport.StaffId">
+                                    @foreach (var staff in staffMembers)
+                                    {
+                                        <option value="@staff.Id">
+                                            @staff.User?.FirstName @staff.User?.LastName - @staff.Department
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+
+                            <!-- Schedule Selection (Optional) -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Schedule (Optional)</label>
+                                <select class="form-select" @bind="selectedScheduleId">
+                                    <option value="0">-- No Schedule --</option>
+                                    @foreach (var schedule in schedules)
+                                    {
+                                        <option value="@schedule.Id">
+                                            @schedule.Staff?.User?.FirstName @schedule.Staff?.User?.LastName -
+                                            @schedule.StartTime.ToString("yyyy-MM-dd HH:mm")
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+
+                            <!-- Clock In Date -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Clock In Date *</label>
+                                <input type="date"
+                                       class="form-control"
+                                       value="@clockInDateString"
+                                       @onchange="@(e => clockInDateString = e.Value?.ToString() ?? string.Empty)" />
+                            </div>
+
+                            <!-- Clock In Time -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Clock In Time *</label>
+                                <input type="time"
+                                       class="form-control"
+                                       value="@clockInTimeString"
+                                       @onchange="@(e => clockInTimeString = e.Value?.ToString() ?? string.Empty)" />
+                            </div>
+
+                            <!-- Clock Out Date -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Clock Out Date</label>
+                                <input type="date"
+                                       class="form-control"
+                                       value="@clockOutDateString"
+                                       @onchange="@(e => clockOutDateString = e.Value?.ToString() ?? string.Empty)" />
+                                <small class="text-muted">Leave empty if still working</small>
+                            </div>
+
+                            <!-- Clock Out Time -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Clock Out Time</label>
+                                <input type="time"
+                                       class="form-control"
+                                       value="@clockOutTimeString"
+                                       @onchange="@(e => clockOutTimeString = e.Value?.ToString() ?? string.Empty)" />
+                            </div>
+
+                            <!-- Activity Type -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Activity Type *</label>
+                                <select class="form-select" @bind="timeReport.ActivityType">
+                                    <option value="Regular Work">Regular Work</option>
+                                    <option value="Overtime">Overtime</option>
+                                    <option value="On-Call">On-Call</option>
+                                    <option value="Emergency">Emergency</option>
+                                    <option value="Training">Training</option>
+                                    <option value="Meeting">Meeting</option>
+                                </select>
+                            </div>
+
+                            <!-- Calculated Hours (Read-only) -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Hours Worked</label>
+                                <input type="text" class="form-control" value="@CalculateHours()" readonly />
+                                <small class="text-muted">Calculated automatically</small>
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Notes</label>
+                                <textarea @bind="timeReport.Notes" class="form-control" rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="button" class="btn btn-warning" @onclick="HandleSubmit" disabled="@isSubmitting">
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Updating...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    <span>Update Time Report</span>
+                                }
+                            </button>
+                            <button type="button" class="btn btn-secondary" @onclick="Cancel" disabled="@isSubmitting">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private TimeReport? timeReport;
+    private List<Staff> staffMembers = new();
+    private List<Schedule> schedules = new();
+
+    // String representations for all date/time inputs
+    private string clockInDateString = string.Empty;
+    private string clockInTimeString = string.Empty;
+    private string clockOutDateString = string.Empty;
+    private string clockOutTimeString = string.Empty;
+    private int selectedScheduleId = 0;
+
+    private bool loading = true;
+    private bool isSubmitting = false;
+    private string? errorMessage = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            loading = true;
+            errorMessage = null;
+
+            // Load the time report
+            timeReport = await AdminService.GetTimeReportByIdAsync(Id);
+
+            if (timeReport != null)
+            {
+                // Load staff and schedules for dropdowns
+                staffMembers = await AdminService.GetAllStaffAsync();
+                schedules = await AdminService.GetAllSchedulesAsync();
+
+                // Initialize form values as strings for HTML inputs
+                clockInDateString = timeReport.ClockIn.ToString("yyyy-MM-dd");
+                clockInTimeString = timeReport.ClockIn.ToString("HH:mm");
+
+                if (timeReport.ClockOut.HasValue)
+                {
+                    clockOutDateString = timeReport.ClockOut.Value.ToString("yyyy-MM-dd");
+                    clockOutTimeString = timeReport.ClockOut.Value.ToString("HH:mm");
+                }
+                else
+                {
+                    clockOutDateString = string.Empty;
+                    clockOutTimeString = string.Empty;
+                }
+
+                selectedScheduleId = timeReport.ScheduleId ?? 0;
+            }
+            else
+            {
+                errorMessage = "Time report not found.";
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            errorMessage = $"Access Denied: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading time report: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ClearError()
+    {
+        errorMessage = null;
+    }
+
+    private string CalculateHours()
+    {
+        try
+        {
+            // Check if we have valid clock-in data
+            if (string.IsNullOrWhiteSpace(clockInDateString) || string.IsNullOrWhiteSpace(clockInTimeString))
+                return "Enter clock-in";
+
+            // Check if we have clock-out data
+            if (string.IsNullOrWhiteSpace(clockOutDateString) || string.IsNullOrWhiteSpace(clockOutTimeString))
+                return "Still working";
+
+            // Parse dates
+            if (!DateTime.TryParse(clockInDateString, out DateTime clockInDate))
+                return "Invalid clock-in date";
+
+            if (!DateTime.TryParse(clockOutDateString, out DateTime clockOutDate))
+                return "Invalid clock-out date";
+
+            // Parse times
+            if (!TimeSpan.TryParse(clockInTimeString, out TimeSpan clockInTime))
+                return "Invalid clock-in time";
+
+            if (!TimeSpan.TryParse(clockOutTimeString, out TimeSpan clockOutTime))
+                return "Invalid clock-out time";
+
+            // Combine date and time
+            DateTime clockIn = clockInDate.Date.Add(clockInTime);
+            DateTime clockOut = clockOutDate.Date.Add(clockOutTime);
+
+            // Calculate duration
+            TimeSpan duration = clockOut - clockIn;
+
+            if (duration.TotalHours < 0)
+                return "Clock-out before clock-in";
+
+            if (duration.TotalHours > 24)
+                return "Duration > 24 hours";
+
+            return $"{duration.TotalHours:F2} hours";
+        }
+        catch
+        {
+            return "Calculation error";
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+
+            if (timeReport == null)
+            {
+                errorMessage = "Time report data is missing.";
+                return;
+            }
+
+            // Validate required fields
+            if (string.IsNullOrWhiteSpace(clockInDateString))
+            {
+                errorMessage = "Clock-in date is required.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(clockInTimeString))
+            {
+                errorMessage = "Clock-in time is required.";
+                return;
+            }
+
+            // Parse clock-in date
+            if (!DateTime.TryParse(clockInDateString, out DateTime clockInDate))
+            {
+                errorMessage = "Invalid clock-in date format.";
+                return;
+            }
+
+            // Parse clock-in time
+            if (!TimeSpan.TryParse(clockInTimeString, out TimeSpan clockInTime))
+            {
+                errorMessage = "Invalid clock-in time format. Please use HH:mm format (e.g., 09:00).";
+                return;
+            }
+
+            // Set ClockIn
+            timeReport.ClockIn = clockInDate.Date.Add(clockInTime);
+
+            // Handle ClockOut (if provided)
+            if (!string.IsNullOrWhiteSpace(clockOutDateString) && !string.IsNullOrWhiteSpace(clockOutTimeString))
+            {
+                if (!DateTime.TryParse(clockOutDateString, out DateTime clockOutDate))
+                {
+                    errorMessage = "Invalid clock-out date format.";
+                    return;
+                }
+
+                if (!TimeSpan.TryParse(clockOutTimeString, out TimeSpan clockOutTime))
+                {
+                    errorMessage = "Invalid clock-out time format. Please use HH:mm format (e.g., 17:00).";
+                    return;
+                }
+
+                timeReport.ClockOut = clockOutDate.Date.Add(clockOutTime);
+
+                // Validate that clock-out is after clock-in
+                if (timeReport.ClockOut <= timeReport.ClockIn)
+                {
+                    errorMessage = "Clock-out time must be after clock-in time.";
+                    return;
+                }
+            }
+            else
+            {
+                timeReport.ClockOut = null;
+            }
+
+            // Update ScheduleId
+            timeReport.ScheduleId = selectedScheduleId > 0 ? selectedScheduleId : null;
+
+            // Call AdminService to update
+            var result = await AdminService.UpdateTimeReportAsync(timeReport);
+
+            if (result.Success)
+            {
+                Navigation.NavigateTo("/admin/timereport/index");
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            errorMessage = $"Access Denied: {ex.Message}";
+        }
+        catch (FormatException ex)
+        {
+            errorMessage = $"Invalid format: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating time report: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/admin/timereport/index");
+    }
+}
