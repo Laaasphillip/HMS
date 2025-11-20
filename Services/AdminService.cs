@@ -46,7 +46,7 @@ namespace HMS.Services
                 throw new UnauthorizedAccessException($"User with role '{role}' is not authorized to {operation}");
             }
         }
-        //TIME REPORT
+        #region TimeReport Management
 
         public async Task<List<TimeReport>> GetAllTimeReportsAsync()
         {
@@ -70,6 +70,24 @@ namespace HMS.Services
                     .ThenInclude(s => s.User)
                 .Include(tr => tr.Schedule)
                 .FirstOrDefaultAsync(tr => tr.Id == id);
+        }
+
+        public async Task<List<TimeReport>> GetTimeReportsByStaffIdAsync(int staffId)
+        {
+            await EnsureAuthorizedAsync("AdminOnly", "view staff time reports");
+
+            // Validate that the staff member exists
+            var staffExists = await _context.Staff.AnyAsync(s => s.Id == staffId);
+            if (!staffExists)
+                throw new ArgumentException($"Staff member with ID {staffId} not found");
+
+            return await _context.TimeReports
+                .Include(tr => tr.Staff)
+                    .ThenInclude(s => s.User)
+                .Include(tr => tr.Schedule)
+                .Where(tr => tr.StaffId == staffId)
+                .OrderByDescending(tr => tr.ClockIn)
+                .ToListAsync();
         }
         public async Task<(bool Success, string Message)> DeleteTimeReportAsync(int id)
         {
@@ -105,7 +123,7 @@ namespace HMS.Services
              DateTime clockIn,
              DateTime? clockOut,
              string activityType,
-             string notes ="")
+             string notes = "")
         {
             try
             {
@@ -117,21 +135,24 @@ namespace HMS.Services
                 if (!staffExists)
                     return (false, "Staff member not found", null);
 
-                // Validate schedule if provided
+                // Load schedule if provided
+                Schedule? schedule = null;
                 if (scheduleId.HasValue)
                 {
-                    var scheduleExists = await _context.Schedules.AnyAsync(s => s.Id == scheduleId.Value);
-                    if (!scheduleExists)
+                    schedule = await _context.Schedules.FindAsync(scheduleId.Value);
+                    if (schedule == null)
                         return (false, "Schedule not found", null);
                 }
-                // Calculations hours worked
+
+                // Calculate hours worked
                 decimal hoursWorked = 0;
                 if (clockOut.HasValue)
                 {
                     var duration = clockOut.Value - clockIn;
                     hoursWorked = (decimal)duration.TotalHours;
                 }
-                //Creating timereport
+
+                // Create time report
                 var timeReport = new TimeReport
                 {
                     StaffId = staffId,
@@ -141,8 +162,13 @@ namespace HMS.Services
                     HoursWorked = hoursWorked,
                     ActivityType = activityType,
                     Notes = notes,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    ApprovalStatus = "Pending"
                 };
+
+                // Calculate deviations if schedule exists
+                CalculateDeviations(timeReport, schedule);
+
                 _context.TimeReports.Add(timeReport);
                 await _context.SaveChangesAsync();
 
@@ -212,6 +238,14 @@ namespace HMS.Services
                     timeReport.HoursWorked = 0;
                 }
 
+                // Load schedule and deviations
+                Schedule? schedule = null;
+                if (timeReport.ScheduleId.HasValue)
+                {
+                    schedule = await _context.Schedules.FindAsync(timeReport.ScheduleId.Value);
+                }
+                CalculateDeviations(timeReport, schedule);
+
                 // Update the time report
                 existingReport.StaffId = timeReport.StaffId;
                 existingReport.ScheduleId = timeReport.ScheduleId;
@@ -236,12 +270,90 @@ namespace HMS.Services
             }
         }
 
-             
+        // Get pending time reports that need approval (have deviations)
+        public async Task<List<TimeReport>> GetPendingTimeReportsAsync()
+        {
+            await EnsureAuthorizedAsync("AdminOnly", "view pending time reports");
 
+            return await _context.TimeReports
+                .Include(tr => tr.Staff)
+                    .ThenInclude(s => s.User)
+                .Include(tr => tr.Schedule)
+                .Where(tr => tr.ApprovalStatus == "Pending" &&
+                            (tr.LateArrivalMinutes > 0 || tr.EarlyDepartureMinutes > 0))
+                .OrderByDescending(tr => tr.ClockIn)
+                .ToListAsync();
+        }
 
+        // Approve or reject a time report
+        public async Task<(bool Success, string Message)> ApproveTimeReportAsync(
+            int timeReportId,
+            bool isApproved,
+            string? approvalNotes = null)
+        {
+            try
+            {
+                await EnsureAuthorizedAsync("AdminOnly", "approve time report");
 
+                var timeReport = await _context.TimeReports.FindAsync(timeReportId);
+                if (timeReport == null)
+                    return (false, "Time report not found");
 
+                var userId = CurrentUser.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
+                timeReport.ApprovalStatus = isApproved ? "Approved" : "Rejected";
+                timeReport.ApprovedBy = userId;
+                timeReport.ApprovedAt = DateTime.UtcNow;
+                timeReport.ApprovalNotes = approvalNotes;
+
+                _context.TimeReports.Update(timeReport);
+                await _context.SaveChangesAsync();
+
+                var statusText = isApproved ? "approved" : "rejected";
+                return (true, $"Time report {statusText} successfully");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return (false, $"Access Denied: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Error processing time report: {ex.Message}");
+            }
+        }
+
+        // Calculate deviations between clock in/out and scheduled times
+        private void CalculateDeviations(TimeReport timeReport, Schedule? schedule)
+        {
+            if (schedule == null)
+            {
+                timeReport.LateArrivalMinutes = null;
+                timeReport.EarlyDepartureMinutes = null;
+                return;
+            }
+
+            // Calculate late arrival
+            var scheduledStart = schedule.Date.Date + schedule.StartTime;
+            var actualStart = timeReport.ClockIn;
+
+            var arrivalDifference = (actualStart - scheduledStart).TotalMinutes;
+            timeReport.LateArrivalMinutes = arrivalDifference > 0 ? (int)arrivalDifference : 0;
+
+            // Calculate early departure (only if clocked out)
+            if (timeReport.ClockOut.HasValue)
+            {
+                var scheduledEnd = schedule.Date.Date + schedule.EndTime;
+                var actualEnd = timeReport.ClockOut.Value;
+
+                var departureDifference = (scheduledEnd - actualEnd).TotalMinutes;
+                timeReport.EarlyDepartureMinutes = departureDifference > 0 ? (int)departureDifference : 0;
+            }
+            else
+            {
+                timeReport.EarlyDepartureMinutes = null;
+            }
+        }
+        #endregion
 
         #region Patient Management
 
@@ -749,9 +861,9 @@ namespace HMS.Services
             return await _context.SaveChangesAsync() > 0;
         }
 
-        /// <summary>
+        
         /// Book an appointment slot (increment bookings counter)
-        /// </summary>
+        
         public async Task<bool> BookAppointmentSlotAsync(int slotId)
         {
             var slot = await _context.AppointmentSlots.FindAsync(slotId);
@@ -774,9 +886,9 @@ namespace HMS.Services
             return await _context.SaveChangesAsync() > 0;
         }
 
-        /// <summary>
-        /// Cancel a booking in an appointment slot (decrement bookings counter)
-        /// </summary>
+       
+        /// Cancel a booking in an appointment slot 
+        
         public async Task<bool> CancelAppointmentSlotBookingAsync(int slotId)
         {
             var slot = await _context.AppointmentSlots.FindAsync(slotId);
@@ -1015,9 +1127,9 @@ namespace HMS.Services
 
         #region Slot Generation
 
-        /// <summary>
+       
         /// Generate appointment slots for a schedule based on staff configuration
-        /// </summary>
+        
         public async Task<List<AppointmentSlot>> GenerateSlotsForScheduleAsync(int scheduleId)
         {
             await EnsureAuthorizedAsync("AdminOrStaff", "generate appointment slots");
@@ -1078,7 +1190,7 @@ namespace HMS.Services
 
                 var slotEndTime = currentTime.Add(TimeSpan.FromMinutes(config.SlotDurationMinutes));
 
-                // Check if this slot overlaps with any blocks (comparing TimeSpan values)
+                // Check if this slot overlaps with any blocks 
                 var isBlocked = blocks.Any(b =>
                     currentTime < b.EndTime && slotEndTime > b.StartTime);
 
@@ -1112,9 +1224,8 @@ namespace HMS.Services
             return generatedSlots;
         }
 
-        /// <summary>
-        /// Regenerate slots for a schedule (delete old slots and create new ones)
-        /// </summary>
+        
+        /// Regenerate slots for a schedule
         public async Task<List<AppointmentSlot>> RegenerateSlotsForScheduleAsync(int scheduleId)
         {
             await EnsureAuthorizedAsync("AdminOrStaff", "regenerate appointment slots");
@@ -1215,14 +1326,14 @@ namespace HMS.Services
                 .FirstOrDefaultAsync(u => u.Id == userId);
         }
 
-        public async Task<ApplicationUser?> GetUserByIdAsync (string id)
+        public async Task<ApplicationUser?> GetUserByIdAsync(string id)
         {
             if (string.IsNullOrEmpty(id)) return null;
 
             return await _userManager.Users
-                .Include (u => u.Patient)
+                .Include(u => u.Patient)
                 .Include(u => u.Staff)
-                .FirstOrDefaultAsync (u => u.Id == id);
+                .FirstOrDefaultAsync(u => u.Id == id);
         }
 
         public async Task<IList<string>> GetUserRolesAsync(ApplicationUser user)
