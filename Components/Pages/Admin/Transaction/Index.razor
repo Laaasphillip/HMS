@@ -4,7 +4,7 @@
 @using Microsoft.AspNetCore.Authorization
 @inject AdminService AdminService
 @inject NavigationManager NavigationManager
-@attribute [Authorize(Policy = "AdminOnly")]
+@attribute [Authorize(Policy = "AdminOrStaff")]
 @rendermode InteractiveServer
 
 <PageTitle>Transactions - HMS</PageTitle>
@@ -21,9 +21,6 @@
                 </ol>
             </nav>
         </div>
-        <button class="btn btn-primary" @onclick="OpenCreateModal">
-            <i class="bi bi-plus-circle"></i> Add Transaction
-        </button>
     </div>
 
     @if (!string.IsNullOrEmpty(errorMessage))
@@ -170,9 +167,6 @@
                 <div class="text-center py-5">
                     <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
                     <p class="text-muted mt-3">No transactions found</p>
-                    <button class="btn btn-primary mt-2" @onclick="OpenCreateModal">
-                        <i class="bi bi-plus-circle me-2"></i>Add First Transaction
-                    </button>
                 </div>
             }
             else
@@ -262,92 +256,6 @@
         </div>
     </div>
 </div>
-
-<!-- Create Transaction Modal -->
-@if (showCreateModal)
-{
-    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add New Transaction</h5>
-                    <button type="button" class="btn-close" @onclick="CloseCreateModal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Invoice *</label>
-                        <select class="form-select" @bind="newTransaction.InvoiceId">
-                            <option value="0">Select Invoice</option>
-                            @foreach (var invoice in pendingInvoices)
-                            {
-                                <option value="@invoice.Id">
-                                    @invoice.InvoiceNumber -
-                                    @if (invoice.Patient?.User != null)
-                                    {
-                                        <text>@invoice.Patient.User.FirstName @invoice.Patient.User.LastName</text>
-                                    }
-                                    (@invoice.TotalAmount.ToString("C"))
-                                </option>
-                            }
-                        </select>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Amount *</label>
-                            <input type="number" class="form-control" @bind="newTransaction.Amount" step="0.01" min="0" />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Transaction Date *</label>
-                            <input type="datetime-local" class="form-control" @bind="transactionDateTime" />
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Payment Method *</label>
-                            <select class="form-select" @bind="newTransaction.PaymentMethod">
-                                <option value="Cash">Cash</option>
-                                <option value="Credit Card">Credit Card</option>
-                                <option value="Debit Card">Debit Card</option>
-                                <option value="Bank Transfer">Bank Transfer</option>
-                                <option value="Mobile Payment">Mobile Payment</option>
-                                <option value="Check">Check</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Status *</label>
-                            <select class="form-select" @bind="newTransaction.Status">
-                                <option value="Completed">Completed</option>
-                                <option value="Success">Success</option>
-                                <option value="Pending">Pending</option>
-                                <option value="Failed">Failed</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    @if (!string.IsNullOrEmpty(modalErrorMessage))
-                    {
-                        <div class="alert alert-danger">
-                            @modalErrorMessage
-                        </div>
-                    }
-
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @onclick="CloseCreateModal">Cancel</button>
-                        <button type="button" class="btn btn-primary" @onclick="CreateTransaction" disabled="@isSaving">
-                            @if (isSaving)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create Transaction
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-}
 
 <!-- Details Modal -->
 @if (showDetailsModal && selectedTransaction != null)
@@ -551,62 +459,6 @@
         selectedStatus = "";
         selectedPaymentMethod = "";
         ApplyFilters();
-    }
-
-    private void OpenCreateModal()
-    {
-        newTransaction = new HMS.Models.Transaction
-        {
-            Status = "Completed",
-            PaymentMethod = "Cash",
-            Amount = 0
-        };
-        transactionDateTime = DateTime.Now;
-        modalErrorMessage = null;
-        showCreateModal = true;
-    }
-
-    private void CloseCreateModal()
-    {
-        showCreateModal = false;
-        newTransaction = new();
-        modalErrorMessage = null;
-    }
-
-    private async Task CreateTransaction()
-    {
-        try
-        {
-            isSaving = true;
-            modalErrorMessage = null;
-
-            if (newTransaction.InvoiceId == 0)
-            {
-                modalErrorMessage = "Please select an invoice";
-                return;
-            }
-
-            if (newTransaction.Amount <= 0)
-            {
-                modalErrorMessage = "Amount must be greater than zero";
-                return;
-            }
-
-            newTransaction.TransactionDate = transactionDateTime;
-            await AdminService.CreateTransactionAsync(newTransaction);
-
-            successMessage = "Transaction created successfully";
-            CloseCreateModal();
-            await LoadData();
-        }
-        catch (Exception ex)
-        {
-            modalErrorMessage = $"Error creating transaction: {ex.Message}";
-        }
-        finally
-        {
-            isSaving = false;
-        }
     }
 
     private void ViewDetails(HMS.Models.Transaction transaction)

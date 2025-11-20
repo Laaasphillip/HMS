@@ -216,92 +216,9 @@
 
         <!-- Management Sections -->
         <div class="row g-4">
-            <!-- Patient & Appointment Management -->
-            <div class="col-lg-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-primary text-white border-0 py-3">
-                        <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Patient & Appointment Management</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-primary text-start" @onclick='() => NavigationManager.NavigateTo("/patients")'>
-                                <i class="bi bi-people me-2"></i>Manage Patients
-                                <span class="badge bg-primary float-end">@totalPatients</span>
-                            </button>
-                            <button class="btn btn-outline-primary text-start" @onclick='() => NavigationManager.NavigateTo("/appointments")'>
-                                <i class="bi bi-calendar-check me-2"></i>Manage Appointments
-                                <span class="badge bg-primary float-end">@totalAppointments</span>
-                            </button>
-                            <button class="btn btn-outline-primary text-start" @onclick='() => NavigationManager.NavigateTo("/appointment-slots")'>
-                                <i class="bi bi-calendar-range me-2"></i>Appointment Slots
-                            </button>
-                            <button class="btn btn-outline-primary text-start" @onclick='() => NavigationManager.NavigateTo("/appointment-slot-configurations")'>
-                                <i class="bi bi-gear-fill me-2"></i>Slot Configurations
-                            </button>
-                            <button class="btn btn-outline-primary text-start" @onclick='() => NavigationManager.NavigateTo("/appointment-blocks")'>
-                                <i class="bi bi-calendar-x me-2"></i>Time Blocks
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Staff Management -->
-            <div class="col-lg-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-success text-white border-0 py-3">
-                        <h5 class="mb-0"><i class="bi bi-person-badge-fill me-2"></i>Staff Management</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-success text-start" @onclick='() => NavigationManager.NavigateTo("/staff")'>
-                                <i class="bi bi-person-badge me-2"></i>Manage Staff
-                                <span class="badge bg-success float-end">@totalStaff</span>
-                            </button>
-                            <button class="btn btn-outline-success text-start" @onclick='() => NavigationManager.NavigateTo("/schedules")'>
-                                <i class="bi bi-calendar3 me-2"></i>Staff Schedules
-                                <span class="badge bg-success float-end">@totalSchedules</span>
-                            </button>
-                            <button class="btn btn-outline-success text-start" @onclick='() => NavigationManager.NavigateTo("/admin/timereport/index")'>
-                                <i class="bi bi-clock-history me-2"></i>Time Reports
-                                <span class="badge bg-success float-end">@totalTimeReports</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Financial Management -->
-            <div class="col-lg-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-warning text-dark border-0 py-3">
-                        <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Financial Management</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-warning text-start" @onclick='() => NavigationManager.NavigateTo("/invoice")'>
-                                <i class="bi bi-receipt me-2"></i>Manage Invoices
-                                <span class="badge bg-warning float-end">@totalInvoices</span>
-                            </button>
-                            <button class="btn btn-outline-warning text-start" @onclick='() => NavigationManager.NavigateTo("/transaction")'>
-                                <i class="bi bi-credit-card me-2"></i>View Transactions
-                                <span class="badge bg-warning float-end">@totalRevenue.ToString("C0")</span>
-                            </button>
-                        </div>
-
-                        @if (pendingInvoices > 0)
-                        {
-                            <div class="alert alert-warning mt-3 mb-0">
-                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                                <strong>@pendingInvoices</strong> pending invoices worth <strong>@pendingInvoicesAmount.ToString("C")</strong>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-
+          
             <!-- Recent Activity -->
-            <div class="col-lg-6">
+            <div class="col-lg-12">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-header bg-info text-white border-0 py-3">
                         <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Activity</h5>

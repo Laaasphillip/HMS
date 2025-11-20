@@ -206,11 +206,6 @@
                                                     title="View Details">
                                                 <i class="bi bi-eye"></i>
                                             </button>
-                                            <button class="btn btn-outline-info"
-                                                    @onclick="() => EditInvoice(invoice.Id)"
-                                                    title="Edit">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
                                             <button class="btn btn-outline-danger"
                                                     @onclick="() => OpenDeleteModal(invoice)"
                                                     title="Delete">
@@ -367,10 +362,6 @@
         Navigation.NavigateTo($"/invoice/details/{id}");
     }
 
-    private void EditInvoice(int id)
-    {
-        Navigation.NavigateTo($"/invoice/edit/{id}");
-    }
 
     private void OpenDeleteModal(Invoice invoice)
     {

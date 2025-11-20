@@ -354,19 +354,19 @@
         if (currentUserRole == "Admin")
         {
             // Navigate to create page with pre-selected date
-            NavigationManager.NavigateTo($"/schedule/create?date={args.Start:yyyy-MM-dd}");
+            NavigationManager.NavigateTo($"/admin/schedule/create?date={args.Start:yyyy-MM-dd}");
 
         }
     }
 
     private void CreateSchedule()
     {
-        NavigationManager.NavigateTo("/schedule/create");
+        NavigationManager.NavigateTo("/admin/schedule/create");
     }
 
     private void EditSchedule(int scheduleId)
     {
-        NavigationManager.NavigateTo($"/schedule/edit/{scheduleId}");
+        NavigationManager.NavigateTo($"/admin/schedule/edit/{scheduleId}");
     }
 
     private void ViewDetails(int scheduleId)

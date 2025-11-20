@@ -879,7 +879,7 @@
             isProcessing = true;
 
             var apt = await AdminService.GetAppointmentByIdAsync(selectedAppointment.Id);
-            if (apt != null)
+            if (apt != null )
             {
                 apt.Status = "Cancelled";
                 await AdminService.UpdateAppointmentAsync(apt);
@@ -916,9 +916,9 @@
 
     private bool CanRebook(Appointment apt) =>
         apt.AppointmentDate >= DateTime.Now && apt.Status != "Cancelled" && apt.Status != "Completed";
-
+        
     private bool CanCancel(Appointment apt) =>
-        apt.Status != "Cancelled" && apt.Status != "Completed";
+        apt.AppointmentDate >= DateTime.Now && apt.Status != "Cancelled" && apt.Status != "Completed";
 
     private string GetBadgeClass(string status) => status.ToLower() switch
     {

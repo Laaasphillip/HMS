@@ -549,7 +549,7 @@
 
     private void EditSchedule()
     {
-        NavigationManager.NavigateTo($"/schedule/edit/{ScheduleId}");
+        NavigationManager.NavigateTo($"/admin/schedule/edit/{ScheduleId}");
     }
 
     private async Task DeleteSchedule()
@@ -559,7 +559,7 @@
             var success = await AdminService.DeleteScheduleAsync(ScheduleId);
             if (success)
             {
-                NavigationManager.NavigateTo("/admin/schedules");
+                NavigationManager.NavigateTo("/schedules");
             }
             else
             {
