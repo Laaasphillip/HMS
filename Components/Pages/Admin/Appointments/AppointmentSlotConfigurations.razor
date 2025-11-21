@@ -158,71 +158,135 @@
             }
             else
             {
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Staff Member</th>
-                                <th>Specialization</th>
-                                <th>Slot Duration</th>
-                                <th>Buffer Time</th>
-                                <th>Max Patients/Slot</th>
-                                <th>Advance Booking Days</th>
-                                <th>Status</th>
-                                <th>Last Updated</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var config in filteredConfigurations)
-                            {
+                <div class="d-none d-lg-block">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
                                 <tr>
-                                    <td>
-                                        <div>
-                                            <strong>@config.Staff?.User.FirstName @config.Staff?.User.LastName</strong>
-                                        </div>
-                                    </td>
-                                    <td>@config.Staff?.Specialization</td>
-                                    <td>@config.SlotDurationMinutes min</td>
-                                    <td>@config.BufferTimeMinutes min</td>
-                                    <td>@config.MaxPatientsPerSlot</td>
-                                    <td>@config.AdvanceBookingDays days</td>
-                                    <td>
-                                        @if (config.IsActive)
-                                        {
-                                            <span class="badge bg-success">Active</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-warning">Inactive</span>
-                                        }
-                                    </td>
-                                    <td>
-                                         
-                                        @if (config.UpdatedAt == null)
-                                        {
-                                            <span class="text-muted">"N/A"</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">@config.UpdatedAt?.ToString("MMM dd, yyyy HH:mm")</span>
-                                        }
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary" @onclick="() => OpenEditModal(config)">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button class="btn btn-outline-danger" @onclick="() => OpenDeleteModal(config)">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
+                                    <th>Staff Member</th>
+                                    <th>Specialization</th>
+                                    <th>Slot Duration</th>
+                                    <th>Buffer Time</th>
+                                    <th>Max Patients/Slot</th>
+                                    <th>Advance Booking Days</th>
+                                    <th>Status</th>
+                                    <th>Last Updated</th>
+                                    <th>Actions</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach (var config in filteredConfigurations)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div>
+                                                <strong>@config.Staff?.User.FirstName @config.Staff?.User.LastName</strong>
+                                            </div>
+                                        </td>
+                                        <td>@config.Staff?.Specialization</td>
+                                        <td>@config.SlotDurationMinutes min</td>
+                                        <td>@config.BufferTimeMinutes min</td>
+                                        <td>@config.MaxPatientsPerSlot</td>
+                                        <td>@config.AdvanceBookingDays days</td>
+                                        <td>
+                                            @if (config.IsActive)
+                                            {
+                                                <span class="badge bg-success">Active</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-warning">Inactive</span>
+                                            }
+                                        </td>
+                                        <td>
+
+                                            @if (config.UpdatedAt == null)
+                                            {
+                                                <span class="text-muted">"N/A"</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">@config.UpdatedAt?.ToString("MMM dd, yyyy HH:mm")</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" @onclick="() => OpenEditModal(config)">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" @onclick="() => OpenDeleteModal(config)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+                <div class="d-lg-none">
+                    @foreach (var config in filteredConfigurations)
+                    {
+                        <div class="card appointment-card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-light border-bottom">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                                             style="width: 40px; height: 40px; font-size: 0.9rem;">
+                                            @GetInitials(config.Staff?.User?.FirstName, config.Staff?.User?.LastName)
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">Dr. @config.Staff?.User?.FirstName @config.Staff?.User?.LastName</div>
+                                            <small class="text-muted">@config.Staff?.Specialization</small>
+                                        </div>
+                                    </div>
+                                    @if (config.IsActive)
+                                    {
+                                        <span class="badge bg-success">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning">Inactive</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <span class="text-muted small">Slot Duration</span>
+                                    <span class="badge bg-light text-dark">@config.SlotDurationMinutes min</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center py-2">
+                                    <span class="text-muted small">Buffer Time</span>
+                                    <span class="badge bg-light text-dark">@config.BufferTimeMinutes min</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center py-2">
+                                    <span class="text-muted small">Max Patients/Slot</span>
+                                    <span class="fw-medium">@config.MaxPatientsPerSlot</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center py-2">
+                                    <span class="text-muted small">Advance Booking Days</span>
+                                    <span class="fw-medium">@config.AdvanceBookingDays</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <span class="text-muted small">Last Updated</span>
+                                    <span class="fw-medium">@config.UpdatedAt?.ToString("MMM dd, yyyy HH:mm")</span>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-white border-top">
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-primary" @onclick="() => OpenEditModal(config)" title="Edit">
+                                        <i class="bi bi-pencil me-1"></i>Edit
+                                    </button>
+                                    <button class="btn btn-outline-danger" @onclick="() => OpenDeleteModal(config)" title="Delete">
+                                        <i class="bi bi-trash me-1"></i>Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
             }
         </div>
     </div>
@@ -231,7 +295,7 @@
 <!-- Create/Edit Modal -->
 @if (showEditModal)
 {
-    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal show d-config" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -313,7 +377,7 @@
 <!-- Delete Confirmation Modal -->
 @if (showDeleteModal)
 {
-    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal show d-config" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -535,5 +599,12 @@
         {
             isSaving = false;
         }
+    }
+
+    private string GetInitials(string? firstName, string? lastName)
+    {
+        var first = !string.IsNullOrEmpty(firstName) ? firstName[0].ToString() : "";
+        var last = !string.IsNullOrEmpty(lastName) ? lastName[0].ToString() : "";
+        return (first + last).ToUpper();
     }
 }
