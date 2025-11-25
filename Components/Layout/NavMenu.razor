@@ -38,6 +38,7 @@
                 </NavLink>
             </div>
         </AuthorizeView>
+
         <AuthorizeView Policy="PatientOnly">
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="patient/invoices">
@@ -50,9 +51,8 @@
                 </NavLink>
             </div>
         </AuthorizeView>
+
         <AuthorizeView Policy="AdminOrStaff">
-
-
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="/appointment-slots">
                     <i class="bi bi-calendar-range me-2"></i>Appointment Slots
@@ -99,14 +99,17 @@
                     <i class="bi bi-credit-card me-2" aria-hidden="true"></i> Transactions
                 </NavLink>
             </div>
+        </AuthorizeView>
 
+        <!-- Time Reports - Separate for Admin and Staff -->
+        <AuthorizeView Policy="AdminOrStaff">
             <div class="nav-item px-3">
-                <NavLink class="nav-link" href="/admin/timereport/index">
-                    <i class="bi bi-clock-history me-2" aria-hidden="true"></i> Time Reports
+                <NavLink class="nav-link" href="/timereport">
+                    <i class="bi bi-clock-history me-2" aria-hidden="true"></i> Time Report
                 </NavLink>
             </div>
-
         </AuthorizeView>
+
         <AuthorizeView>
             <Authorized>
                 <div class="nav-item px-3">
@@ -143,8 +146,6 @@
                         <i class="bi bi-person-badge me-2" aria-hidden="true"></i> Login
                     </NavLink>
                 </div>
-
-
             </NotAuthorized>
         </AuthorizeView>
     </nav>
@@ -170,4 +171,3 @@
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
-

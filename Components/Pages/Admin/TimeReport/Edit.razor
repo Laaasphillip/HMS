@@ -62,13 +62,14 @@
                             <!-- Schedule Selection (Optional) -->
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Schedule (Optional)</label>
-                                <select class="form-select" @bind="selectedScheduleId">
+                                <select class="form-select" @onchange="UpdateDatesFromSchedule">
                                     <option value="0">-- No Schedule --</option>
-                                    @foreach (var schedule in schedules)
+                                    @foreach (var schedule in FilteredSchedules)
                                     {
                                         <option value="@schedule.Id">
                                             @schedule.Staff?.User?.FirstName @schedule.Staff?.User?.LastName -
-                                            @schedule.StartTime.ToString("yyyy-MM-dd HH:mm")
+                                            @schedule.Date.ToString("yyyy-MM-dd") -
+                                            @schedule.StartTime.ToString(@"hh\:mm")
                                         </option>
                                     }
                                 </select>
@@ -89,7 +90,8 @@
                                 <input type="time"
                                        class="form-control"
                                        value="@clockInTimeString"
-                                       @onchange="@(e => clockInTimeString = e.Value?.ToString() ?? string.Empty)" />
+                                       disabled
+                                 />
                             </div>
 
                             <!-- Clock Out Date -->
@@ -170,6 +172,10 @@
     private TimeReport? timeReport;
     private List<Staff> staffMembers = new();
     private List<Schedule> schedules = new();
+    private List<Schedule> FilteredSchedules =>
+    timeReport.StaffId > 0
+        ? schedules.Where(s => s.StaffId == timeReport.StaffId).ToList()
+        : schedules;
 
     // String representations for all date/time inputs
     private string clockInDateString = string.Empty;
@@ -366,7 +372,7 @@
 
             if (result.Success)
             {
-                Navigation.NavigateTo("/admin/timereport/index");
+                Navigation.NavigateTo("/timereport");
             }
             else
             {
@@ -393,6 +399,24 @@
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/admin/timereport/index");
+        Navigation.NavigateTo("/timereport");
+    }
+
+    private void UpdateDatesFromSchedule(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int scheduleId) && scheduleId > 0)
+        {
+            selectedScheduleId = scheduleId; // Add this line since @bind won't work with @onchange
+            var schedule = schedules.FirstOrDefault(s => s.Id == scheduleId);
+            if (schedule != null)
+            {
+                clockInDateString = schedule.Date.ToString("yyyy-MM-dd");
+                clockInTimeString = schedule.StartTime.ToString(@"hh\:mm");
+            }
+        }
+        else
+        {
+            selectedScheduleId = 0; // Handle "No Schedule" selection
+        }
     }
 }

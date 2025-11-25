@@ -144,6 +144,14 @@ namespace HMS.Services
                         return (false, "Schedule not found", null);
                 }
 
+                // Check for existing time report for this schedule
+                var existingReport = await _context.TimeReports
+                    .FirstOrDefaultAsync(tr => tr.ScheduleId == scheduleId.Value && tr.StaffId == staffId);
+
+                if (existingReport != null)
+                {
+                    return (false, $"A time report already exists for this schedule (ID: {existingReport.Id}). Please edit the existing report instead.", null);
+                }
                 // Calculate hours worked
                 decimal hoursWorked = 0;
                 if (clockOut.HasValue)
@@ -377,20 +385,28 @@ namespace HMS.Services
 
             var currentStaff = await GetCurrentStaffAsync();
             if (currentStaff == null)
-                throw new InvalidOperationException("Current user is not associated with a staff member");
-
-            return await _context.TimeReports
+            {
+                return await _context.TimeReports
                 .Include(tr => tr.Staff)
                     .ThenInclude(s => s.User)
                 .Include(tr => tr.Schedule)
-                .Where(tr => tr.StaffId == currentStaff.Id)
                 .OrderByDescending(tr => tr.ClockIn)
                 .ToListAsync();
+            }
+            else
+            {
+                return await _context.TimeReports
+                    .Include(tr => tr.Staff)
+                        .ThenInclude(s => s.User)
+                    .Include(tr => tr.Schedule)
+                    .Where(tr => tr.StaffId == currentStaff.Id)
+                    .OrderByDescending(tr => tr.ClockIn)
+                    .ToListAsync();
+            }
         }
 
-        
         /// Get the current active time report for the current staff member
-        
+
         public async Task<TimeReport?> GetActiveTimeReportAsync()
         {
             await EnsureAuthorizedAsync("AdminOrStaff", "view active time report");
@@ -432,6 +448,20 @@ namespace HMS.Services
                 var todaySchedule = await _context.Schedules
                     .Where(s => s.StaffId == currentStaff.Id && s.Date.Date == DateTime.Today)
                     .FirstOrDefaultAsync();
+
+                // If schedule exists, check for existing completed time report
+                if (todaySchedule != null)
+                {
+                    var existingReport = await _context.TimeReports
+                        .FirstOrDefaultAsync(tr => tr.ScheduleId == todaySchedule.Id &&
+                                                   tr.StaffId == currentStaff.Id &&
+                                                   tr.ClockOut.HasValue);
+
+                    if (existingReport != null)
+                    {
+                        return (false, $"You have already completed a time report for today's schedule. Clock in: {existingReport.ClockIn:HH:mm}, Clock out: {existingReport.ClockOut:HH:mm}", null);
+                    }
+                }
 
                 // Create new time report
                 var timeReport = new TimeReport
@@ -841,6 +871,14 @@ namespace HMS.Services
                 .Where(s => s.StaffId == staffId)
                 .OrderByDescending(s => s.StartTime)
                 .ToListAsync();
+        }
+        public async Task<Schedule?> GetScheduleForStaffOnDateAsync(int staffId, DateTime date)
+        {
+            return await _context.Schedules
+                .Include(s => s.Staff)
+                    .ThenInclude(staff => staff.User)
+                .Where(s => s.StaffId == staffId && s.Date.Date == date.Date)
+                .FirstOrDefaultAsync();
         }
 
         public async Task<Schedule> CreateScheduleAsync(Schedule schedule)
