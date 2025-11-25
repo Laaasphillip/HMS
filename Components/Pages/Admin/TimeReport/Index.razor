@@ -7,11 +7,22 @@
 @attribute [Authorize(Policy = "AdminOrStaff")]
 @rendermode InteractiveServer
 
-<PageTitle>My Time Reports</PageTitle>
+<AuthorizeView Policy="StaffOnly">
+    <PageTitle>My Time Reports</PageTitle>
+</AuthorizeView>
+<AuthorizeView Policy="AdminOnly">
+    <PageTitle>Time Reports</PageTitle>
+</AuthorizeView>
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3><i class="bi bi-clock-history"></i> My Time Reports</h3>
+        <AuthorizeView Policy="AdminOnly">
+            <h3><i class="bi bi-clock-history"></i> Time Reports</h3>
+        </AuthorizeView>
+        <AuthorizeView Policy="StaffOnly">
+            <h3><i class="bi bi-clock-history"></i> My Time Reports</h3>
+        </AuthorizeView>
+
         <AuthorizeView Policy="AdminOnly">
             <button class="btn btn-primary" @onclick="NavigateToCreateTimeReport">
                 <i class="bi bi-plus-circle"></i> Create Time Report
@@ -116,7 +127,10 @@
                                         <th>Deviations</th>
                                         <th>Status</th>
                                         <th>Notes</th>
-                                        <th>Actions</th>
+                                        <AuthorizeView Policy="AdminOnly">
+                                            <th>Actions</th>
+                                        </AuthorizeView>
+
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -195,33 +209,35 @@
                                                     <span class="text-muted">-</span>
                                                 }
                                             </td>
-                                            <td>
-                                                <div class="btn-group" role="group">
-                                                    <button class="btn btn-sm btn-outline-warning"
-                                                            @onclick="() => EditReport(report.Id)"
-                                                            title="Edit">
-                                                        <i class="bi bi-pencil"></i>
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-danger"
-                                                            @onclick="() => ConfirmDelete(report.Id)"
-                                                            title="Delete">
-                                                        <i class="bi bi-trash"></i>
-                                                    </button>
-                                                    @if (report.ApprovalStatus == "Pending")
-                                                    {
-                                                        <button class="btn btn-sm btn-outline-success"
-                                                                @onclick="() => ApproveReport(report.Id)"
-                                                                title="Approve">
-                                                            <i class="bi bi-check-square-fill"></i>
+                                            <AuthorizeView Policy="AdminOnly">
+                                                <td>
+                                                    <div class="btn-group" role="group">
+                                                        <button class="btn btn-sm btn-outline-warning"
+                                                                @onclick="() => EditReport(report.Id)"
+                                                                title="Edit">
+                                                            <i class="bi bi-pencil"></i>
                                                         </button>
                                                         <button class="btn btn-sm btn-outline-danger"
-                                                                @onclick="() => RejectReport(report.Id)"
-                                                                title="Reject">
-                                                            <i class="bi bi-x-square-fill"></i>
+                                                                @onclick="() => ConfirmDelete(report.Id)"
+                                                                title="Delete">
+                                                            <i class="bi bi-trash"></i>
                                                         </button>
-                                                    }
-                                                </div>
-                                            </td>
+                                                        @if (report.ApprovalStatus == "Pending")
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-success"
+                                                                    @onclick="() => ApproveReport(report.Id)"
+                                                                    title="Approve">
+                                                                <i class="bi bi-check-square-fill"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-outline-danger"
+                                                                    @onclick="() => RejectReport(report.Id)"
+                                                                    title="Reject">
+                                                                <i class="bi bi-x-square-fill"></i>
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                </td>
+                                            </AuthorizeView>
                                         </tr>
                                     }
                                 </tbody>
@@ -326,25 +342,27 @@
                                         </span>
                                     </div>
                                 </div>
-                                <div class="card-footer bg-white border-top">
-                                    <div class="d-flex gap-2">
-                                        <button class="btn btn-sm btn-outline-primary flex-fill" @onclick="() => EditReport(report.Id)">
-                                            <i class="bi bi-pencil me-1"></i>Edit
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger flex-fill" @onclick="() => ConfirmDelete(report.Id)">
-                                            <i class="bi bi-trash me-1"></i>Delete
-                                        </button>
-                                        @if (report.ApprovalStatus == "Pending")
-                                        {
-                                            <button class="btn btn-sm btn-outline-success flex-fill" @onclick="() => ApproveReport(report.Id)">
-                                                <i class="bi bi-check-square me-1"></i>Approve
+                                <AuthorizeView Policy="AdminOnly">
+                                    <div class="card-footer bg-white border-top">
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-outline-primary flex-fill" @onclick="() => EditReport(report.Id)">
+                                                <i class="bi bi-pencil me-1"></i>Edit
                                             </button>
-                                            <button class="btn btn-sm btn-outline-danger flex-fill" @onclick="() => RejectReport(report.Id)">
-                                                <i class="bi bi-x-square me-1"></i>Reject
+                                            <button class="btn btn-sm btn-outline-danger flex-fill" @onclick="() => ConfirmDelete(report.Id)">
+                                                <i class="bi bi-trash me-1"></i>Delete
                                             </button>
-                                        }
+                                            @if (report.ApprovalStatus == "Pending")
+                                            {
+                                                <button class="btn btn-sm btn-outline-success flex-fill" @onclick="() => ApproveReport(report.Id)">
+                                                    <i class="bi bi-check-square me-1"></i>Approve
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger flex-fill" @onclick="() => RejectReport(report.Id)">
+                                                    <i class="bi bi-x-square me-1"></i>Reject
+                                                </button>
+                                            }
+                                        </div>
                                     </div>
-                                </div>
+                                </AuthorizeView>
                             </div>
                         }
                     </div>

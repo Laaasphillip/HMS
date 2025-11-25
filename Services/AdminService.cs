@@ -46,6 +46,7 @@ namespace HMS.Services
                 throw new UnauthorizedAccessException($"User with role '{role}' is not authorized to {operation}");
             }
         }
+
         #region TimeReport Management
 
         public async Task<List<TimeReport>> GetAllTimeReportsAsync()
