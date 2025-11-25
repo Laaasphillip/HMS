@@ -270,7 +270,7 @@ namespace HMS.Services
             }
         }
 
-        // Get pending time reports that need approval (have deviations)
+        // Get pending time reports that need approval
         public async Task<List<TimeReport>> GetPendingTimeReportsAsync()
         {
             await EnsureAuthorizedAsync("AdminOnly", "view pending time reports");
@@ -353,6 +353,195 @@ namespace HMS.Services
                 timeReport.EarlyDepartureMinutes = null;
             }
         }
+
+        #region Staff TimeReport Methods
+
+        // Helper method to get current staff member
+        private async Task<Staff?> GetCurrentStaffAsync()
+        {
+            var userId = CurrentUser.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return null;
+
+            return await _context.Staff
+                .Include(s => s.User)
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+        }
+
+       
+        /// Get all time reports for the current logged-in staff member
+        
+        public async Task<List<TimeReport>> GetMyTimeReportsAsync()
+        {
+            await EnsureAuthorizedAsync("AdminOrStaff", "view own time reports");
+
+            var currentStaff = await GetCurrentStaffAsync();
+            if (currentStaff == null)
+                throw new InvalidOperationException("Current user is not associated with a staff member");
+
+            return await _context.TimeReports
+                .Include(tr => tr.Staff)
+                    .ThenInclude(s => s.User)
+                .Include(tr => tr.Schedule)
+                .Where(tr => tr.StaffId == currentStaff.Id)
+                .OrderByDescending(tr => tr.ClockIn)
+                .ToListAsync();
+        }
+
+        
+        /// Get the current active time report for the current staff member
+        
+        public async Task<TimeReport?> GetActiveTimeReportAsync()
+        {
+            await EnsureAuthorizedAsync("AdminOrStaff", "view active time report");
+
+            var currentStaff = await GetCurrentStaffAsync();
+            if (currentStaff == null)
+                return null;
+
+            return await _context.TimeReports
+                .Include(tr => tr.Staff)
+                    .ThenInclude(s => s.User)
+                .Include(tr => tr.Schedule)
+                .Where(tr => tr.StaffId == currentStaff.Id && tr.ClockOut == null)
+                .OrderByDescending(tr => tr.ClockIn)
+                .FirstOrDefaultAsync();
+        }
+
+       
+        /// Clock In - Creates a new time report with current time as clock in
+        
+        public async Task<(bool Success, string Message, TimeReport? TimeReport)> ClockInAsync(string activityType = "Regular Work", string notes = "")
+        {
+            try
+            {
+                await EnsureAuthorizedAsync("AdminOrStaff", "clock in");
+
+                var currentStaff = await GetCurrentStaffAsync();
+                if (currentStaff == null)
+                    return (false, "Current user is not associated with a staff member", null);
+
+                // Check if there's already an active time report
+                var activeTimeReport = await GetActiveTimeReportAsync();
+                if (activeTimeReport != null)
+                {
+                    return (false, $"You are already clocked in since {activeTimeReport.ClockIn:HH:mm}. Please clock out first.", null);
+                }
+
+                // Get today's schedule if exists
+                var todaySchedule = await _context.Schedules
+                    .Where(s => s.StaffId == currentStaff.Id && s.Date.Date == DateTime.Today)
+                    .FirstOrDefaultAsync();
+
+                // Create new time report
+                var timeReport = new TimeReport
+                {
+                    StaffId = currentStaff.Id,
+                    ScheduleId = todaySchedule?.Id,
+                    ClockIn = DateTime.Now,
+                    ClockOut = null,
+                    HoursWorked = 0,
+                    ActivityType = activityType,
+                    Notes = notes,
+                    CreatedAt = DateTime.UtcNow,
+                    ApprovalStatus = "Pending"
+                };
+
+                // Calculate deviations if schedule exists
+                CalculateDeviations(timeReport, todaySchedule);
+
+                _context.TimeReports.Add(timeReport);
+                await _context.SaveChangesAsync();
+
+                // Load navigation properties
+                await _context.Entry(timeReport)
+                    .Reference(tr => tr.Staff)
+                    .LoadAsync();
+
+                if (timeReport.Staff != null)
+                {
+                    await _context.Entry(timeReport.Staff)
+                        .Reference(s => s.User)
+                        .LoadAsync();
+                }
+                if (todaySchedule != null)
+                {
+                    await _context.Entry(timeReport)
+                        .Reference(tr => tr.Schedule)
+                        .LoadAsync();
+                }
+
+                return (true, $"Successfully clocked in at {timeReport.ClockIn:HH:mm}", timeReport);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return (false, $"Access Denied: {ex.Message}", null);
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Error clocking in: {ex.Message}", null);
+            }
+        }
+
+        
+        //Clock Out - Updates the active time report
+       
+        public async Task<(bool Success, string Message, TimeReport? TimeReport)> ClockOutAsync(string notes = "")
+        {
+            try
+            {
+                await EnsureAuthorizedAsync("AdminOrStaff", "clock out");
+
+                var currentStaff = await GetCurrentStaffAsync();
+                if (currentStaff == null)
+                    return (false, "Current user is not associated with a staff member", null);
+
+                // Get the active time report
+                var activeTimeReport = await GetActiveTimeReportAsync();
+                if (activeTimeReport == null)
+                {
+                    return (false, "No active clock-in found. Please clock in first.", null);
+                }
+
+                // Update clock out time
+                activeTimeReport.ClockOut = DateTime.Now;
+
+                // Calculate hours worked
+                var duration = activeTimeReport.ClockOut.Value - activeTimeReport.ClockIn;
+                activeTimeReport.HoursWorked = (decimal)duration.TotalHours;
+
+                // Update notes if provided
+                if (!string.IsNullOrEmpty(notes))
+                {
+                    activeTimeReport.Notes = string.IsNullOrEmpty(activeTimeReport.Notes)
+                        ? notes
+                        : $"{activeTimeReport.Notes}; {notes}";
+                }
+
+                // Recalculate deviations with updated clock out time
+                var schedule = activeTimeReport.Schedule;
+                if (schedule == null && activeTimeReport.ScheduleId.HasValue)
+                {
+                    schedule = await _context.Schedules.FindAsync(activeTimeReport.ScheduleId.Value);
+                }
+                CalculateDeviations(activeTimeReport, schedule);
+
+                _context.TimeReports.Update(activeTimeReport);
+                await _context.SaveChangesAsync();
+
+                return (true, $"Successfully clocked out at {activeTimeReport.ClockOut:HH:mm}. Hours worked: {activeTimeReport.HoursWorked:F2}", activeTimeReport);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return (false, $"Access Denied: {ex.Message}", null);
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Error clocking out: {ex.Message}", null);
+            }
+        }
+
+        #endregion
         #endregion
 
         #region Patient Management
@@ -862,9 +1051,9 @@ namespace HMS.Services
             return await _context.SaveChangesAsync() > 0;
         }
 
-        
+
         /// Book an appointment slot (increment bookings counter)
-        
+
         public async Task<bool> BookAppointmentSlotAsync(int slotId)
         {
             var slot = await _context.AppointmentSlots.FindAsync(slotId);
@@ -887,9 +1076,9 @@ namespace HMS.Services
             return await _context.SaveChangesAsync() > 0;
         }
 
-       
+
         /// Cancel a booking in an appointment slot 
-        
+
         public async Task<bool> CancelAppointmentSlotBookingAsync(int slotId)
         {
             var slot = await _context.AppointmentSlots.FindAsync(slotId);
@@ -1128,9 +1317,9 @@ namespace HMS.Services
 
         #region Slot Generation
 
-       
+
         /// Generate appointment slots for a schedule based on staff configuration
-        
+
         public async Task<List<AppointmentSlot>> GenerateSlotsForScheduleAsync(int scheduleId)
         {
             await EnsureAuthorizedAsync("AdminOrStaff", "generate appointment slots");
@@ -1225,7 +1414,7 @@ namespace HMS.Services
             return generatedSlots;
         }
 
-        
+
         /// Regenerate slots for a schedule
         public async Task<List<AppointmentSlot>> RegenerateSlotsForScheduleAsync(int scheduleId)
         {

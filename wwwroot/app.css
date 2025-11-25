@@ -492,3 +492,57 @@ a {
         min-width: 80px;
     }
 }
+/*Clock-in/Clock-out Button Styles */
+
+.clock-btn {
+    min-width: 80px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+    .clock-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .clock-btn:active {
+        transform: translateY(0);
+    }
+
+    .clock-btn.btn-primary {
+        background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+        color: var(--white);
+    }
+
+        .clock-btn.btn-primary:hover {
+            background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+        }
+
+.clock-out-btn {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: var(--white);
+}
+
+    .clock-out-btn:hover {
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+    }
+
+.clock-btn i {
+    font-size: 16px;
+}
+
+@media (max-width: 576px) {
+    .clock-btn {
+        min-width: 50px;
+        padding: 10px 12px;
+    }
+}

@@ -112,6 +112,83 @@
             </div>
         </div>
 
+        <!-- Clock In/Clock Out Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body py-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                @if (activeTimeReport != null)
+                                {
+                                    <div class="me-3">
+                                        <i class="bi bi-clock-fill text-success" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-bold">Clocked In</h6>
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock me-1"></i>@activeTimeReport.ClockIn.ToString("HH:mm") • @GetElapsedTime(activeTimeReport.ClockIn)
+                                            @if (activeTimeReport.LateArrivalMinutes.HasValue && activeTimeReport.LateArrivalMinutes.Value > 0)
+                                            {
+                                                <span class="badge bg-warning text-dark ms-2" style="font-size: 0.7rem;">
+                                                    Late @activeTimeReport.LateArrivalMinutes min
+                                                </span>
+                                            }
+                                        </small>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="me-3">
+                                        <i class="bi bi-clock text-muted" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-bold text-muted">Not Clocked In</h6>
+                                        <small class="text-muted">Ready to start your work day</small>
+                                    </div>
+                                }
+                            </div>
+                            <div>
+                                @if (clockActionLoading)
+                                {
+                                    <button class="btn btn-secondary clock-btn" disabled>
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                    </button>
+                                }
+                                else if (activeTimeReport != null)
+                                {
+                                    <button class="btn clock-btn clock-out-btn" @onclick="ClockOutAsync" title="Clock Out">
+                                        <i class="bi bi-box-arrow-right"></i>
+                                        <span class="d-none d-sm-inline ms-1">Out</span>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-primary clock-btn" @onclick="ClockInAsync" title="Clock In">
+                                        <i class="bi bi-box-arrow-in-right"></i>
+                                        <span class="d-none d-sm-inline ms-1">In</span>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(clockMessage))
+        {
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div class="alert @(clockSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show py-2" role="alert">
+                        <i class="bi @(clockSuccess ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill") me-2"></i>
+                        <small>@clockMessage</small>
+                        <button type="button" class="btn-close" @onclick="() => clockMessage = null"></button>
+                    </div>
+                </div>
+            </div>
+        }
+
         <div class="row g-4">
             <!-- Left Column -->
             <div class="col-lg-8">
@@ -313,6 +390,12 @@
     private int totalPatients = 0;
     private int totalHoursThisWeek = 0;
 
+    // Clock In/Out related variables
+    private TimeReport? activeTimeReport;
+    private bool clockActionLoading = false;
+    private string? clockMessage;
+    private bool clockSuccess = false;
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -381,6 +464,9 @@
                                    a.AppointmentDate.Date < weekEnd &&
                                    a.Status == "Completed")
                         .Count();
+
+                    // Load active time report for clock in/out
+                    activeTimeReport = await AdminService.GetActiveTimeReportAsync();
                 }
             }
         }
@@ -391,6 +477,90 @@
         finally
         {
             isLoading = false;
+        }
+    }
+
+    private async Task ClockInAsync()
+    {
+        try
+        {
+            clockActionLoading = true;
+            clockMessage = null;
+
+            var result = await AdminService.ClockInAsync();
+
+            clockSuccess = result.Success;
+            clockMessage = result.Message;
+
+            if (result.Success)
+            {
+                activeTimeReport = result.TimeReport;
+            }
+        }
+        catch (Exception ex)
+        {
+            clockSuccess = false;
+            clockMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            clockActionLoading = false;
+        }
+    }
+
+    private async Task ClockOutAsync()
+    {
+        try
+        {
+            clockActionLoading = true;
+            clockMessage = null;
+
+            var result = await AdminService.ClockOutAsync();
+
+            clockSuccess = result.Success;
+            clockMessage = result.Message;
+
+            if (result.Success)
+            {
+                activeTimeReport = null;
+
+                // Reload hours for the week
+                if (currentStaff != null)
+                {
+                    var allAppointments = await AdminService.GetAppointmentsByStaffIdAsync(currentStaff.Id);
+                    var weekStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek);
+                    var weekEnd = weekStart.AddDays(7);
+
+                    totalHoursThisWeek = allAppointments
+                        .Where(a => a.AppointmentDate.Date >= weekStart &&
+                                   a.AppointmentDate.Date < weekEnd &&
+                                   a.Status == "Completed")
+                        .Count();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            clockSuccess = false;
+            clockMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            clockActionLoading = false;
+        }
+    }
+
+    private string GetElapsedTime(DateTime startTime)
+    {
+        var elapsed = DateTime.Now - startTime;
+
+        if (elapsed.TotalHours >= 1)
+        {
+            return $"{(int)elapsed.TotalHours}h {elapsed.Minutes}m";
+        }
+        else
+        {
+            return $"{elapsed.Minutes}m";
         }
     }
 
