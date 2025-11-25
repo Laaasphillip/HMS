@@ -115,6 +115,21 @@
             <div class="col-12">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body py-3">
+                        @if (showDeviationWarning)
+                        {
+                            <div class="alert alert-warning mb-3">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                <strong>@deviationWarningMessage</strong>
+                                <div class="mt-2">
+                                    <label class="form-label small">Specify reason:</label>
+                                    <textarea class="form-control form-control-sm"
+                                              @bind="deviationReason"
+                                              rows="2"
+                                              placeholder="Enter reason for early arrival or late departure..."></textarea>
+                                </div>
+                            </div>
+                        }
+
                         <div class="d-flex align-items-center justify-content-between">
                             <div class="d-flex align-items-center">
                                 @if (activeTimeReport != null)
@@ -142,7 +157,7 @@
                                     </div>
                                     <div>
                                         <h6 class="mb-0 fw-bold text-muted">Not Clocked In</h6>
-                                        <small class="text-muted">Ready to start your work day</small>
+                                        <small class="text-muted">Current time: @DateTime.Now.ToString("HH:mm")</small>
                                     </div>
                                 }
                             </div>
@@ -157,14 +172,14 @@
                                 {
                                     <button class="btn clock-btn clock-out-btn" @onclick="ClockOutAsync" title="Clock Out">
                                         <i class="bi bi-box-arrow-right"></i>
-                                        <span class="d-none d-sm-inline ms-1">Out</span>
+                                        <span class="d-none d-sm-inline ms-1">Clock Out</span>
                                     </button>
                                 }
                                 else
                                 {
                                     <button class="btn btn-primary clock-btn" @onclick="ClockInAsync" title="Clock In">
                                         <i class="bi bi-box-arrow-in-right"></i>
-                                        <span class="d-none d-sm-inline ms-1">In</span>
+                                        <span class="d-none d-sm-inline ms-1">Clock In</span>
                                     </button>
                                 }
                             </div>
@@ -393,6 +408,10 @@
     private bool clockActionLoading = false;
     private string? clockMessage;
     private bool clockSuccess = false;
+    private bool showDeviationWarning = false;
+    private string deviationWarningMessage = "";
+    private string deviationReason = "";
+    private Schedule? todaySchedule;
 
     protected override async Task OnInitializedAsync()
     {
@@ -484,8 +503,39 @@
         {
             clockActionLoading = true;
             clockMessage = null;
+            showDeviationWarning = false;
 
-            var result = await AdminService.ClockInAsync();
+            // Check if there's a schedule for today
+            if (currentStaff != null)
+            {
+                todaySchedule = await AdminService.GetScheduleForStaffOnDateAsync(currentStaff.Id, DateTime.Today);
+
+                if (todaySchedule != null)
+                {
+                    var scheduledStart = todaySchedule.Date.Date + todaySchedule.StartTime;
+                    var now = DateTime.Now;
+                    var minutesDifference = (now - scheduledStart).TotalMinutes;
+
+                    // If more than 5 minutes early or late
+                    if (Math.Abs(minutesDifference) > 5)
+                    {
+                        if (minutesDifference < 0)
+                        {
+                            deviationWarningMessage = $"You are {Math.Abs((int)minutesDifference)} minutes early. Your shift starts at {scheduledStart:HH:mm}.";
+                        }
+                        else
+                        {
+                            deviationWarningMessage = $"You are {(int)minutesDifference} minutes late. Your shift started at {scheduledStart:HH:mm}.";
+                        }
+
+                        showDeviationWarning = true;
+                        clockActionLoading = false;
+                        return;
+                    }
+                }
+            }
+
+            var result = await AdminService.ClockInAsync("Regular Work", deviationReason);
 
             clockSuccess = result.Success;
             clockMessage = result.Message;
@@ -493,6 +543,8 @@
             if (result.Success)
             {
                 activeTimeReport = result.TimeReport;
+                deviationReason = "";
+                showDeviationWarning = false;
             }
         }
         catch (Exception ex)
@@ -512,8 +564,26 @@
         {
             clockActionLoading = true;
             clockMessage = null;
+            showDeviationWarning = false;
 
-            var result = await AdminService.ClockOutAsync();
+            // Check if clocking out early
+            if (activeTimeReport != null && todaySchedule != null)
+            {
+                var scheduledEnd = todaySchedule.Date.Date + todaySchedule.EndTime;
+                var now = DateTime.Now;
+                var minutesDifference = (scheduledEnd - now).TotalMinutes;
+
+                // If leaving more than 5 minutes early
+                if (minutesDifference > 5)
+                {
+                    deviationWarningMessage = $"You are clocking out {(int)minutesDifference} minutes early. Your shift ends at {scheduledEnd:HH:mm}.";
+                    showDeviationWarning = true;
+                    clockActionLoading = false;
+                    return;
+                }
+            }
+
+            var result = await AdminService.ClockOutAsync(deviationReason);
 
             clockSuccess = result.Success;
             clockMessage = result.Message;
@@ -521,6 +591,8 @@
             if (result.Success)
             {
                 activeTimeReport = null;
+                deviationReason = "";
+                showDeviationWarning = false;
 
                 // Reload hours for the week
                 if (currentStaff != null)
