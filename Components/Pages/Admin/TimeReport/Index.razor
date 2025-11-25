@@ -102,43 +102,197 @@
                 }
                 else
                 {
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Clock In</th>
-                                    <th>Clock Out</th>
-                                    <th>Hours</th>
-                                    <th>Activity</th>
-                                    <th>Deviations</th>
-                                    <th>Status</th>
-                                    <th>Notes</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var report in FilteredReports)
-                                {
+                    <div class="d-none d-lg-block">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
                                     <tr>
-                                        <td>@report.ClockIn.ToString("yyyy-MM-dd")</td>
-                                        <td>
-                                            <i class="bi bi-clock"></i> @report.ClockIn.ToString("HH:mm")
-                                        </td>
-                                        <td>
+                                        <th>Name</th>
+                                        <th>Date</th>
+                                        <th>Clock In</th>
+                                        <th>Clock Out</th>
+                                        <th>Hours</th>
+                                        <th>Activity</th>
+                                        <th>Deviations</th>
+                                        <th>Status</th>
+                                        <th>Notes</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var report in FilteredReports)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                                                         style="width: 40px; height: 40px; font-size: 0.9rem;">
+                                                        @GetInitials(report.Staff?.User?.FirstName, report.Staff?.User?.LastName)
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-semibold">Dr. @report.Staff?.User?.FirstName @report.Staff?.User?.LastName</div>
+                                                        <small class="text-muted">@report.Staff?.Specialization</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>@report.ClockIn.ToString("yyyy-MM-dd")</td>
+                                            <td>
+                                                <i class="bi bi-clock"></i> @report.ClockIn.ToString("HH:mm")
+                                            </td>
+                                            <td>
+                                                @if (report.ClockOut.HasValue)
+                                                {
+                                                    <i class="bi bi-clock"></i>
+                                                    <text>@report.ClockOut.Value.ToString("HH:mm")</text>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-success">Active</span>
+                                                }
+                                            </td>
+                                            <td>@report.HoursWorked.ToString("F2")</td>
+                                            <td>@report.ActivityType</td>
+                                            <td>
+                                                @if (report.LateArrivalMinutes.HasValue && report.LateArrivalMinutes.Value > 0)
+                                                {
+                                                    <span class="badge bg-warning text-dark me-1">
+                                                        Late: @report.LateArrivalMinutes min
+                                                    </span>
+                                                }
+                                                @if (report.EarlyDepartureMinutes.HasValue && report.EarlyDepartureMinutes.Value > 0)
+                                                {
+                                                    <span class="badge bg-info">
+                                                        Early: @report.EarlyDepartureMinutes min
+                                                    </span>
+                                                }
+                                                @if ((!report.LateArrivalMinutes.HasValue || report.LateArrivalMinutes.Value == 0) &&
+                                                                                    (!report.EarlyDepartureMinutes.HasValue || report.EarlyDepartureMinutes.Value == 0))
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (report.ApprovalStatus == "Approved")
+                                                {
+                                                    <span class="badge bg-success">Approved</span>
+                                                }
+                                                else if (report.ApprovalStatus == "Rejected")
+                                                {
+                                                    <span class="badge bg-danger">Rejected</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning text-dark">Pending</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(report.Notes))
+                                                {
+                                                    <small class="text-muted">@(report.Notes.Length > 30 ? report.Notes.Substring(0, 30) + "..." : report.Notes)</small>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-sm btn-outline-warning"
+                                                            @onclick="() => EditReport(report.Id)"
+                                                            title="Edit">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger"
+                                                            @onclick="() => ConfirmDelete(report.Id)"
+                                                            title="Delete">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                    @if (report.ApprovalStatus == "Pending")
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-success"
+                                                                @onclick="() => ApproveReport(report.Id)"
+                                                                title="Approve">
+                                                            <i class="bi bi-check-square-fill"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger"
+                                                                @onclick="() => RejectReport(report.Id)"
+                                                                title="Reject">
+                                                            <i class="bi bi-x-square-fill"></i>
+                                                        </button>
+                                                    }
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Mobile Card View -->
+                    <div class="d-block d-lg-none">
+                        @foreach (var report in FilteredReports)
+                        {
+                            <div class="card appointment-card border-0 shadow-sm mb-3">
+                                <div class="card-header bg-light border-bottom">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                                                 style="width: 40px; height: 40px; font-size: 0.9rem;">
+                                                @GetInitials(report.Staff?.User?.FirstName, report.Staff?.User?.LastName)
+                                            </div>
+                                            <div>
+                                                <div class="fw-semibold">Dr. @report.Staff?.User?.FirstName @report.Staff?.User?.LastName</div>
+                                                <small class="text-muted">@report.Staff?.Specialization</small>
+                                            </div>
+                                        </div>
+                                        @if (report.ApprovalStatus == "Approved")
+                                        {
+                                            <span class="badge bg-success">Approved</span>
+                                        }
+                                        else if (report.ApprovalStatus == "Rejected")
+                                        {
+                                            <span class="badge bg-danger">Rejected</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">Pending</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted small">Date</span>
+                                        <span class="fw-medium">@report.ClockIn.ToString("MMM dd, yyyy")</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted small">Clock In</span>
+                                        <span class="fw-medium">@report.ClockIn.ToString("HH:mm")</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted small">Clock Out</span>
+                                        <span class="fw-medium">
                                             @if (report.ClockOut.HasValue)
                                             {
                                                 <i class="bi bi-clock"></i>
-                                                <text>@report.ClockOut.Value.ToString("HH:mm")</text>
+                                                <span class="fw-medium">@report.ClockOut.Value.ToString("HH:mm")</span>
                                             }
                                             else
                                             {
                                                 <span class="badge bg-success">Active</span>
                                             }
-                                        </td>
-                                        <td>@report.HoursWorked.ToString("F2")</td>
-                                        <td>@report.ActivityType</td>
-                                        <td>
+                                        </span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted small">Duration</span>
+                                        <span class="badge bg-light text-dark">@report.HoursWorked.ToString("F2")</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center py-2">
+                                        <span class="text-muted small">Activity</span>
+                                        <span class="fw-medium text-end">@report.ActivityType</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center py-2">
+                                        <span class="text-muted small">Deviations</span>
+                                        <span class="fw-medium text-end">
                                             @if (report.LateArrivalMinutes.HasValue && report.LateArrivalMinutes.Value > 0)
                                             {
                                                 <span class="badge bg-warning text-dark me-1">
@@ -156,22 +310,11 @@
                                             {
                                                 <span class="text-muted">-</span>
                                             }
-                                        </td>
-                                        <td>
-                                            @if (report.ApprovalStatus == "Approved")
-                                            {
-                                                <span class="badge bg-success">Approved</span>
-                                            }
-                                            else if (report.ApprovalStatus == "Rejected")
-                                            {
-                                                <span class="badge bg-danger">Rejected</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge bg-warning text-dark">Pending</span>
-                                            }
-                                        </td>
-                                        <td>
+                                        </span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center py-2">
+                                        <span class="text-muted small">Notes</span>
+                                        <span class="fw-medium text-end">
                                             @if (!string.IsNullOrEmpty(report.Notes))
                                             {
                                                 <small class="text-muted">@(report.Notes.Length > 30 ? report.Notes.Substring(0, 30) + "..." : report.Notes)</small>
@@ -180,25 +323,30 @@
                                             {
                                                 <span class="text-muted">-</span>
                                             }
-                                        </td>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <button class="btn btn-sm btn-outline-warning"
-                                                        @onclick="() => EditReport(report.Id)"
-                                                        title="Edit">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-danger"
-                                                        @onclick="() => ConfirmDelete(report.Id)"
-                                                        title="Delete">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-white border-top">
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-primary flex-fill" @onclick="() => EditReport(report.Id)">
+                                            <i class="bi bi-pencil me-1"></i>Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger flex-fill" @onclick="() => ConfirmDelete(report.Id)">
+                                            <i class="bi bi-trash me-1"></i>Delete
+                                        </button>
+                                        @if (report.ApprovalStatus == "Pending")
+                                        {
+                                            <button class="btn btn-sm btn-outline-success flex-fill" @onclick="() => ApproveReport(report.Id)">
+                                                <i class="bi bi-check-square me-1"></i>Approve
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger flex-fill" @onclick="() => RejectReport(report.Id)">
+                                                <i class="bi bi-x-square me-1"></i>Reject
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
                     </div>
                 }
             </div>
@@ -314,11 +462,57 @@
         reportToDelete = id;
         showDeleteModal = true;
     }
+    private async Task ApproveReport(int id)
+    {
+        try
+        {
+            var result = await AdminService.ApproveTimeReportAsync(id, true);
+
+            if (result.Success)
+            {
+                await OnInitializedAsync();
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error approving report: {ex.Message}";
+        }
+    }
+    private async Task RejectReport(int id)
+    {
+        try
+        {
+            var result = await AdminService.ApproveTimeReportAsync(id, false);
+
+            if (result.Success)
+            {
+                await OnInitializedAsync();
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error approving report: {ex.Message}";
+        }
+    }
 
     private void CancelDelete()
     {
         showDeleteModal = false;
         reportToDelete = 0;
+    }
+    private string GetInitials(string? firstName, string? lastName)
+    {
+        var first = !string.IsNullOrEmpty(firstName) ? firstName[0].ToString() : "";
+        var last = !string.IsNullOrEmpty(lastName) ? lastName[0].ToString() : "";
+        return (first + last).ToUpper();
     }
 
     private async Task DeleteReport()

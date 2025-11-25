@@ -61,9 +61,9 @@
                             <!-- Schedule Selection (Optional) -->
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Schedule (Optional)</label>
-                                <select class="form-select" @bind="selectedScheduleId">
+                                <select class="form-select" @onchange="UpdateDatesFromSchedule">
                                     <option value="0">-- No Schedule --</option>
-                                    @foreach (var schedule in schedules)
+                                    @foreach (var schedule in FilteredSchedules)
                                     {
                                         <option value="@schedule.Id">
                                             @schedule.Staff?.User?.FirstName @schedule.Staff?.User?.LastName -
@@ -80,7 +80,9 @@
                                 <input type="date"
                                        class="form-control"
                                        value="@clockInDateString"
-                                       @onchange="@(e => clockInDateString = e.Value?.ToString() ?? string.Empty)" />
+
+                                       disabled
+ />
                             </div>
 
                             <!-- Clock In Time -->
@@ -172,6 +174,10 @@
     private TimeReportCreateModel model = new();
     private List<Staff> staffMembers = new();
     private List<Schedule> schedules = new();
+    private List<Schedule> FilteredSchedules =>
+    model.StaffId > 0
+        ? schedules.Where(s => s.StaffId == model.StaffId).ToList()
+        : schedules;
 
     // String representations for all date/time inputs
     private string clockInDateString = DateTime.Today.ToString("yyyy-MM-dd");
@@ -298,7 +304,8 @@
             }
 
             // Parse clock-in date
-            if (!DateTime.TryParse(clockInDateString, out DateTime clockInDate))
+            string clockInDateStringTime = schedules.SingleOrDefault(s => s.Id == selectedScheduleId)?.Date.ToString("yyyy-MM-dd") ?? "";
+            if (!DateTime.TryParse(clockInDateStringTime, out DateTime clockInDate))
             {
                 errorMessage = "Invalid clock-in date format.";
                 return;
@@ -383,6 +390,24 @@
     private void Cancel()
     {
         Navigation.NavigateTo("/timereport");
+    }
+
+    private void UpdateDatesFromSchedule(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int scheduleId) && scheduleId > 0)
+        {
+            selectedScheduleId = scheduleId; // Add this line since @bind won't work with @onchange
+            var schedule = schedules.FirstOrDefault(s => s.Id == scheduleId);
+            if (schedule != null)
+            {
+                clockInDateString = schedule.Date.ToString("yyyy-MM-dd");
+                clockInTimeString = schedule.StartTime.ToString(@"hh\:mm");
+            }
+        }
+        else
+        {
+            selectedScheduleId = 0; // Handle "No Schedule" selection
+        }
     }
 
     // Model for form binding
