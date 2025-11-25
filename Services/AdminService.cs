@@ -920,6 +920,7 @@ namespace HMS.Services
                 .Include(a => a.Patient)
                     .ThenInclude(p => p.User)
                 .Include(a => a.Schedule)
+                .Include(a => a.AppointmentSlot)
                 .Where(a => a.StaffId == staffId)
                 .OrderByDescending(a => a.AppointmentDate)
                 .ToListAsync();
@@ -938,7 +939,7 @@ namespace HMS.Services
 
         public async Task<bool> UpdateAppointmentAsync(Appointment appointment)
         {
-            await EnsureAuthorizedAsync("AdminOrStaff", "update appointments");
+            await EnsureAuthorizedAsync("Authenticated", "update appointments");
 
             appointment.UpdatedAt = DateTime.UtcNow;
             _context.Appointments.Update(appointment);
@@ -1028,7 +1029,7 @@ namespace HMS.Services
 
         public async Task<bool> UpdateAppointmentSlotAsync(AppointmentSlot slot)
         {
-            await EnsureAuthorizedAsync("AdminOrStaff", "update appointment slots");
+            await EnsureAuthorizedAsync("Authenticated", "update appointment slots");
 
             _context.AppointmentSlots.Update(slot);
             return await _context.SaveChangesAsync() > 0;
@@ -1153,7 +1154,7 @@ namespace HMS.Services
         public async Task<bool> UpdateSlotConfigurationAsync(AppointmentSlotConfiguration config)
         {
             await EnsureAuthorizedAsync("AdminOrStaff", "update slot configurations");
-
+            _context.ChangeTracker.Clear();
             config.UpdatedAt = DateTime.UtcNow;
             _context.AppointmentSlotConfigurations.Update(config);
             return await _context.SaveChangesAsync() > 0;
@@ -1235,7 +1236,7 @@ namespace HMS.Services
         public async Task<bool> UpdateAppointmentBlockAsync(AppointmentBlock block)
         {
             await EnsureAuthorizedAsync("AdminOrStaff", "update appointment blocks");
-
+            _context.ChangeTracker.Clear();
             _context.AppointmentBlocks.Update(block);
             return await _context.SaveChangesAsync() > 0;
         }
@@ -1679,10 +1680,14 @@ namespace HMS.Services
             if (invoice == null)
                 return false;
 
-            // Don't allow deletion if there are transactions
             if (invoice.Transactions.Any())
-                throw new InvalidOperationException("Cannot delete invoice with existing transactions");
-
+            {
+                _context.Transactions.RemoveRange(invoice.Transactions);
+            }
+            if (invoice.InvoiceItems != null && invoice.InvoiceItems.Any())
+            {
+                _context.InvoiceItems.RemoveRange(invoice.InvoiceItems);
+            }
             _context.Invoices.Remove(invoice);
             return await _context.SaveChangesAsync() > 0;
         }
@@ -1882,6 +1887,12 @@ namespace HMS.Services
                     if (totalPaid >= invoice.TotalAmount)
                     {
                         invoice.Status = "Paid";
+                        _context.Invoices.Update(invoice);
+                        await _context.SaveChangesAsync();
+                    }
+                    else if (totalPaid > 0 && totalPaid < invoice.TotalAmount)
+                    {
+                        invoice.Status = "Partially Paid";
                         _context.Invoices.Update(invoice);
                         await _context.SaveChangesAsync();
                     }

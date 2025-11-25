@@ -6,6 +6,8 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @attribute [Authorize(Policy = "AdminOrStaff")]
+@rendermode InteractiveServer
+
 
 <PageTitle>Staff Dashboard</PageTitle>
 
@@ -202,13 +204,13 @@
                         @if (todayAppointments.Any())
                         {
                             <div class="list-group list-group-flush">
-                                @foreach (var appointment in todayAppointments.OrderBy(a => a.AppointmentSlot.StartTime))
+                                @foreach (var appointment in todayAppointments.OrderBy(a => a.AppointmentSlot?.StartTime))
                                 {
                                     <div class="list-group-item px-0 py-3">
                                         <div class="d-flex">
                                             <div class="flex-shrink-0 text-center me-3" style="width: 80px;">
                                                 <div class="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
-                                                    @appointment.AppointmentSlot.StartTime.ToString(@"hh\:mm")
+                                                    @appointment.AppointmentSlot?.StartTime.ToString(@"hh\:mm")
                                                 </div>
                                             </div>
                                             <div class="flex-grow-1">
@@ -216,7 +218,7 @@
                                                     <div>
                                                         <h6 class="mb-1">@appointment.Patient?.User?.FirstName @appointment.Patient?.User?.LastName</h6>
                                                         <p class="mb-1 text-muted small">
-                                                            <i class="bi bi-clock me-1"></i>@appointment.AppointmentSlot.StartTime.ToString(@"hh\:mm") - @appointment.AppointmentSlot.EndTime.ToString(@"hh\:mm")
+                                                            <i class="bi bi-clock me-1"></i>@appointment.AppointmentSlot?.StartTime.ToString(@"hh\:mm") - @appointment.AppointmentSlot?.EndTime.ToString(@"hh\:mm")
                                                         </p>
                                                         @if (!string.IsNullOrEmpty(appointment.Patient?.Contact))
                                                         {
@@ -259,7 +261,7 @@
                                             <div>
                                                 <h6 class="mb-1">@appointment.Patient?.User?.FirstName @appointment.Patient?.User?.LastName</h6>
                                                 <p class="mb-0 text-muted small">
-                                                    <i class="bi bi-calendar3 me-1"></i>@appointment.AppointmentDate.ToString("ddd, MMM dd") at @appointment.AppointmentSlot.StartTime.ToString(@"hh\:mm")
+                                                    <i class="bi bi-calendar3 me-1"></i>@appointment.AppointmentDate.ToString("ddd, MMM dd") at @appointment.AppointmentSlot?.StartTime.ToString(@"hh\:mm")
                                                 </p>
                                             </div>
                                             <span class="badge bg-@GetStatusColor(appointment.Status)">@appointment.Status</span>

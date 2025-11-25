@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HMS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251113143945_Initialize")]
-    partial class Initialize
+    [Migration("20251120110856_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -536,6 +536,19 @@ namespace HMS.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ApprovalNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ApprovalStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("ClockIn")
                         .HasColumnType("datetime2");
 
@@ -545,8 +558,14 @@ namespace HMS.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("EarlyDepartureMinutes")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("HoursWorked")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("LateArrivalMinutes")
+                        .HasColumnType("int");
 
                     b.Property<string>("Notes")
                         .IsRequired()

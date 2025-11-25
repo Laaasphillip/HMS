@@ -164,161 +164,294 @@
             </div>
         </div>
 
-        <!-- Table -->
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-light border-bottom">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-semibold">
-                        Appointment Slots
-                        <span class="badge bg-primary ms-2">@filteredSlots.Count</span>
-                    </h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="text-muted small">Show:</span>
-                        <select class="form-select form-select-sm" style="width: auto;" @bind="pageSize" @bind:after="OnPageSizeChanged">
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
+        <div class="d-none d-lg-block">
 
-            @if (pagedSlots.Any())
-            {
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light">
-                            <tr>
-                                <th class="fw-semibold text-muted small py-3">#</th>
-                                <th class="fw-semibold text-muted small py-3">STAFF</th>
-                                <th class="fw-semibold text-muted small py-3">DATE</th>
-                                <th class="fw-semibold text-muted small py-3">TIME</th>
-                                <th class="fw-semibold text-muted small py-3">DURATION</th>
-                                <th class="fw-semibold text-muted small py-3">STATUS</th>
-                                <th class="fw-semibold text-muted small py-3">BOOKINGS</th>
-                                <th class="fw-semibold text-muted small py-3 text-end">ACTIONS</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @{
-                                int sequenceNumber = (currentPage - 1) * pageSize + 1;
-                            }
-                            @foreach (var slot in pagedSlots)
-                            {
-                                <tr>
-                                    <td class="py-3 text-muted">@sequenceNumber</td>
-                                    <td class="py-3">
-                                        <div class="fw-semibold">Dr. @slot.Staff?.User?.FirstName @slot.Staff?.User?.LastName</div>
-                                        <small class="text-muted">@slot.Staff?.Department</small>
-                                    </td>
-                                    <td class="py-3">@slot.Date.ToString("MMM dd, yyyy")</td>
-                                    <td class="py-3">
-                                        <span class="fw-medium">@slot.StartTime.ToString(@"hh\:mm") - @slot.EndTime.ToString(@"hh\:mm")</span>
-                                    </td>
-                                    <td class="py-3">
-                                        <span class="badge bg-light text-dark">@((slot.EndTime - slot.StartTime).TotalMinutes)m</span>
-                                    </td>
-                                    <td class="py-3">
-                                        <span class="badge @GetStatusBadgeClass(slot.Status)">
-                                            @slot.Status
-                                        </span>
-                                    </td>
-                                    <td class="py-3">
-                                        <span class="fw-medium">@slot.CurrentBookings / @slot.MaxCapacity</span>
-                                    </td>
-                                    <td class="py-3">
-                                        <div class="d-flex gap-2 justify-content-end">
-                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowEditModal(slot)" title="Edit">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger"
-                                                    @onclick="() => ShowDeleteConfirmation(slot)"
-                                                    disabled="@(slot.CurrentBookings > 0)"
-                                                    title="Delete">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                sequenceNumber++;
-                            }
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Pagination -->
-                <div class="card-footer bg-white border-top">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light border-bottom">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div class="text-muted small">
-                            Showing @((currentPage - 1) * pageSize + 1) to @Math.Min(currentPage * pageSize, filteredSlots.Count) of @filteredSlots.Count entries
+                        <h5 class="mb-0 fw-semibold">
+                            Appointment Slots
+                            <span class="badge bg-primary ms-2">@filteredSlots.Count</span>
+                        </h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-muted small">Show:</span>
+                            <select class="form-select form-select-sm" style="width: auto;" @bind="pageSize" @bind:after="OnPageSizeChanged">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
                         </div>
-                        <nav>
-                            <ul class="pagination pagination-sm mb-0">
-                                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
-                                    <button class="page-link" @onclick="GoToFirstPage">
-                                        <i class="bi bi-chevron-double-left"></i>
-                                    </button>
-                                </li>
-                                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
-                                    <button class="page-link" @onclick="GoToPreviousPage">
-                                        <i class="bi bi-chevron-left"></i>
-                                    </button>
-                                </li>
+                    </div>
+                </div>
 
-                                @foreach (var pageNum in GetVisiblePages())
-                                {
-                                    if (pageNum == -1)
-                                    {
-                                        <li class="page-item disabled">
-                                            <span class="page-link">...</span>
-                                        </li>
-                                    }
-                                    else
-                                    {
-                                        <li class="page-item @(pageNum == currentPage ? "active" : "")">
-                                            <button class="page-link" @onclick="@(() => GoToPage(pageNum))">
-                                                @pageNum
-                                            </button>
-                                        </li>
-                                    }
+                @if (pagedSlots.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="fw-semibold text-muted small py-3">#</th>
+                                    <th class="fw-semibold text-muted small py-3">STAFF</th>
+                                    <th class="fw-semibold text-muted small py-3">DATE</th>
+                                    <th class="fw-semibold text-muted small py-3">TIME</th>
+                                    <th class="fw-semibold text-muted small py-3">DURATION</th>
+                                    <th class="fw-semibold text-muted small py-3">STATUS</th>
+                                    <th class="fw-semibold text-muted small py-3">BOOKINGS</th>
+                                    <th class="fw-semibold text-muted small py-3 text-end">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    int sequenceNumber = (currentPage - 1) * pageSize + 1;
                                 }
+                                @foreach (var slot in pagedSlots)
+                                {
+                                    <tr>
+                                        <td class="py-3 text-muted">@sequenceNumber</td>
+                                        <td class="py-3">
+                                            <div class="fw-semibold">Dr. @slot.Staff?.User?.FirstName @slot.Staff?.User?.LastName</div>
+                                            <small class="text-muted">@slot.Staff?.Department</small>
+                                        </td>
+                                        <td class="py-3">@slot.Date.ToString("MMM dd, yyyy")</td>
+                                        <td class="py-3">
+                                            <span class="fw-medium">@slot.StartTime.ToString(@"hh\:mm") - @slot.EndTime.ToString(@"hh\:mm")</span>
+                                        </td>
+                                        <td class="py-3">
+                                            <span class="badge bg-light text-dark">@((slot.EndTime - slot.StartTime).TotalMinutes)m</span>
+                                        </td>
+                                        <td class="py-3">
+                                            <span class="badge @GetStatusBadgeClass(slot.Status)">
+                                                @slot.Status
+                                            </span>
+                                        </td>
+                                        <td class="py-3">
+                                            <span class="fw-medium">@slot.CurrentBookings / @slot.MaxCapacity</span>
+                                        </td>
+                                        <td class="py-3">
+                                            <div class="d-flex gap-2 justify-content-end">
+                                                <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowEditModal(slot)" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger"
+                                                        @onclick="() => ShowDeleteConfirmation(slot)"
+                                                        disabled="@(slot.CurrentBookings > 0)"
+                                                        title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    sequenceNumber++;
+                                }
+                            </tbody>
+                        </table>
+                    </div>
 
-                                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
-                                    <button class="page-link" @onclick="GoToNextPage">
-                                        <i class="bi bi-chevron-right"></i>
-                                    </button>
-                                </li>
-                                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
-                                    <button class="page-link" @onclick="GoToLastPage">
-                                        <i class="bi bi-chevron-double-right"></i>
-                                    </button>
-                                </li>
-                            </ul>
-                        </nav>
+                    <!-- Pagination -->
+                    <div class="card-footer bg-white border-top">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="text-muted small">
+                                Showing @((currentPage - 1) * pageSize + 1) to @Math.Min(currentPage * pageSize, filteredSlots.Count) of @filteredSlots.Count entries
+                            </div>
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0">
+                                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="GoToFirstPage">
+                                            <i class="bi bi-chevron-double-left"></i>
+                                        </button>
+                                    </li>
+                                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="GoToPreviousPage">
+                                            <i class="bi bi-chevron-left"></i>
+                                        </button>
+                                    </li>
+
+                                    @foreach (var pageNum in GetVisiblePages())
+                                    {
+                                        if (pageNum == -1)
+                                        {
+                                            <li class="page-item disabled">
+                                                <span class="page-link">...</span>
+                                            </li>
+                                        }
+                                        else
+                                        {
+                                            <li class="page-item @(pageNum == currentPage ? "active" : "")">
+                                                <button class="page-link" @onclick="@(() => GoToPage(pageNum))">
+                                                    @pageNum
+                                                </button>
+                                            </li>
+                                        }
+                                    }
+
+                                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                        <button class="page-link" @onclick="GoToNextPage">
+                                            <i class="bi bi-chevron-right"></i>
+                                        </button>
+                                    </li>
+                                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                        <button class="page-link" @onclick="GoToLastPage">
+                                            <i class="bi bi-chevron-double-right"></i>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
                     </div>
-                </div>
-            }
-            else
-            {
-                <div class="card-body text-center py-5">
-                    <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
-                         style="width: 80px; height: 80px;">
-                        <i class="bi bi-calendar-x text-muted display-4"></i>
-                    </div>
-                    <h5 class="mb-2">No Appointment Slots</h5>
-                    <p class="text-muted mb-4">No slots match your current filters</p>
-                    @if (HasActiveFilters())
-                    {
-                        <button class="btn btn-outline-primary me-2" @onclick="ClearFilters">
-                            <i class="bi bi-arrow-counterclockwise me-2"></i>Clear Filters
+                }
+                else
+                {
+                    <div class="card-body text-center py-5">
+                        <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                             style="width: 80px; height: 80px;">
+                            <i class="bi bi-calendar-x text-muted display-4"></i>
+                        </div>
+                        <h5 class="mb-2">No Appointment Slots</h5>
+                        <p class="text-muted mb-4">No slots match your current filters</p>
+                        @if (HasActiveFilters())
+                        {
+                            <button class="btn btn-outline-primary me-2" @onclick="ClearFilters">
+                                <i class="bi bi-arrow-counterclockwise me-2"></i>Clear Filters
+                            </button>
+                        }
+                        <button class="btn btn-primary" @onclick="ShowCreateModal">
+                            <i class="bi bi-plus-circle me-2"></i>Create First Slot
                         </button>
-                    }
-                    <button class="btn btn-primary" @onclick="ShowCreateModal">
-                        <i class="bi bi-plus-circle me-2"></i>Create First Slot
-                    </button>
+                    </div>
+                }
+            </div>
+        </div>
+        
+        <!-- Mobile Card View -->
+        <div class="d-lg-none">
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-semibold">
+                            Appointment Slots
+                            <span class="badge bg-primary ms-2">@filteredSlots.Count</span>
+                        </h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-muted small">Show:</span>
+                            <select class="form-select form-select-sm" style="width: auto;" @bind="pageSize" @bind:after="OnPageSizeChanged">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-            }
+                @if (pagedSlots.Any())
+                {
+                    <div class="d-lg-none">
+                        @foreach (var slot in pagedSlots.OrderByDescending(a => a.Date))
+                        {
+                            <div class="card appointment-card border-0 shadow-sm mb-3">
+                                <div class="card-header bg-light border-bottom">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                                                 style="width: 40px; height: 40px; font-size: 0.9rem;">
+                                                @GetInitials(slot.Staff?.User?.FirstName, slot.Staff?.User?.LastName)
+                                            </div>
+                                            <div>
+                                                <div class="fw-semibold">Dr. @slot.Staff?.User?.FirstName @slot.Staff?.User?.LastName</div>
+                                                <small class="text-muted">@slot.Staff?.Specialization</small>
+                                            </div>
+                                        </div>
+                                        <span class="badge @GetStatusBadgeClass(slot.Status)">@slot.Status</span>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted small">Date</span>
+                                        <span class="fw-medium">@slot.Date.ToString("MMM dd, yyyy")</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted small">Time</span>
+                                        <span class="fw-medium">@slot.StartTime.ToString(@"hh\:mm") - @slot.EndTime.ToString(@"hh\:mm")</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted small">Duration</span>
+                                        <span class="badge bg-light text-dark">@((slot.EndTime - slot.StartTime).TotalMinutes)m</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center py-2">
+                                        <span class="text-muted small">Bookings</span>
+                                        <span class="fw-medium">@slot.CurrentBookings / @slot.MaxCapacity</span>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-white border-top">
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-primary flex-fill" @onclick="() => ShowEditModal(slot)" title="Edit">
+                                            <i class="bi bi-pencil me-1"></i>Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger flex-fill"
+                                                @onclick="() => ShowDeleteConfirmation(slot)"
+                                                disabled="@(slot.CurrentBookings > 0)"
+                                                title="Delete">
+                                            <i class="bi bi-trash me-1"></i>Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <!-- Pagination -->
+                    <div class="card-footer bg-white border-top">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="text-muted small">
+                                Showing @((currentPage - 1) * pageSize + 1) to @Math.Min(currentPage * pageSize, filteredSlots.Count) of @filteredSlots.Count entries
+                            </div>
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0">
+                                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="GoToFirstPage">
+                                            <i class="bi bi-chevron-double-left"></i>
+                                        </button>
+                                    </li>
+                                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="GoToPreviousPage">
+                                            <i class="bi bi-chevron-left"></i>
+                                        </button>
+                                    </li>
+
+                                    @foreach (var pageNum in GetVisiblePages())
+                                    {
+                                        if (pageNum == -1)
+                                        {
+                                            <li class="page-item disabled">
+                                                <span class="page-link">...</span>
+                                            </li>
+                                        }
+                                        else
+                                        {
+                                            <li class="page-item @(pageNum == currentPage ? "active" : "")">
+                                                <button class="page-link" @onclick="@(() => GoToPage(pageNum))">
+                                                    @pageNum
+                                                </button>
+                                            </li>
+                                        }
+                                    }
+
+                                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                        <button class="page-link" @onclick="GoToNextPage">
+                                            <i class="bi bi-chevron-right"></i>
+                                        </button>
+                                    </li>
+                                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                        <button class="page-link" @onclick="GoToLastPage">
+                                            <i class="bi bi-chevron-double-right"></i>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                }
+            </div>
         </div>
     }
 </div>
@@ -813,6 +946,13 @@
         "cancelled" => "bg-danger bg-opacity-10 text-danger",
         _ => "bg-light text-dark"
     };
+
+    private string GetInitials(string? firstName, string? lastName)
+    {
+        var first = !string.IsNullOrEmpty(firstName) ? firstName[0].ToString() : "";
+        var last = !string.IsNullOrEmpty(lastName) ? lastName[0].ToString() : "";
+        return (first + last).ToUpper();
+    }
 
     private class SlotEditModel
     {

@@ -23,7 +23,7 @@
     {
         <!-- Summary Cards -->
         <div class="row mb-4">
-            <div class="col-md-4 mb-3">
+            <div class="col-md-4 col-sm-6 mb-3">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
                         <h6 class="text-muted mb-2">Total Outstanding</h6>
@@ -31,7 +31,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4 mb-3">
+            <div class="col-md-4 col-sm-6 mb-3">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
                         <h6 class="text-muted mb-2">Pending Invoices</h6>
@@ -39,7 +39,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4 mb-3">
+            <div class="col-md-4 col-sm-6 mb-3">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
                         <h6 class="text-muted mb-2">Paid This Year</h6>
@@ -61,74 +61,146 @@
                 }
                 else
                 {
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Invoice #</th>
-                                    <th>Date</th>
-                                    <th>Due Date</th>
-                                    <th>Appointment</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var invoice in invoices)
-                                {
+                    <div class="d-none d-lg-block">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
                                     <tr>
-                                        <td><strong>@invoice.InvoiceNumber</strong></td>
-                                        <td>@invoice.CreatedAt.ToString("MMM dd, yyyy")</td>
-                                        <td>
-                                            @if (invoice.DueDate < DateTime.Now && invoice.Status != "Paid")
-                                            {
-                                                <span class="text-danger">
-                                                    <i class="bi bi-exclamation-triangle me-1"></i>
-                                                    @invoice.DueDate.ToString("MMM dd, yyyy")
-                                                </span>
-                                            }
-                                            else
-                                            {
-                                                <span>@invoice.DueDate.ToString("MMM dd, yyyy")</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            @if (invoice.Appointment != null)
-                                            {
-                                                <span>@invoice.Appointment.AppointmentDate.ToString("MMM dd")</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">N/A</span>
-                                            }
-                                        </td>
-                                        <td><strong>@invoice.TotalAmount.ToString("C")</strong></td>
-                                        <td>
-                                            <span class="badge bg-@GetStatusColor(invoice.Status)">
-                                                @invoice.Status
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-primary"
-                                                        @onclick='() => NavigationManager.NavigateTo($"/invoice/details/{invoice.Id}")'>
-                                                    <i class="bi bi-eye"></i> View
-                                                </button>
-                                                @if (invoice.Status != "Paid")
-                                                {
-                                                    <button class="btn btn-success"
-                                                            @onclick='() => NavigationManager.NavigateTo($"/invoice/details/{invoice.Id}")'>
-                                                        <i class="bi bi-credit-card"></i> Pay
-                                                    </button>
-                                                }
-                                            </div>
-                                        </td>
+                                        <th>Invoice #</th>
+                                        <th>Date</th>
+                                        <th>Due Date</th>
+                                        <th>Appointment</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
                                     </tr>
-                                }
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    @foreach (var invoice in invoices)
+                                    {
+                                        <tr>
+                                            <td><strong>@invoice.InvoiceNumber</strong></td>
+                                            <td>@invoice.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                            <td>
+                                                @if (invoice.DueDate < DateTime.Now && invoice.Status != "Paid")
+                                                {
+                                                    <span class="text-danger">
+                                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                                        @invoice.DueDate.ToString("MMM dd, yyyy")
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span>@invoice.DueDate.ToString("MMM dd, yyyy")</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (invoice.Appointment != null)
+                                                {
+                                                    <span>@invoice.Appointment.AppointmentDate.ToString("MMM dd")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">N/A</span>
+                                                }
+                                            </td>
+                                            <td><strong>@invoice.TotalAmount.ToString("C")</strong></td>
+                                            <td>
+                                                <span class="badge bg-@GetStatusColor(invoice.Status)">
+                                                    @invoice.Status
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary"
+                                                            @onclick='() => NavigationManager.NavigateTo($"/invoice/details/{invoice.Id}")'>
+                                                        <i class="bi bi-eye"></i> View
+                                                    </button>
+                                                    @if (invoice.Status != "Paid")
+                                                    {
+                                                        <button class="btn btn-success"
+                                                                @onclick='() => NavigationManager.NavigateTo($"/invoice/details/{invoice.Id}")'>
+                                                            <i class="bi bi-credit-card"></i> Pay
+                                                        </button>
+                                                    }
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
+                    <div class="d-lg-none">
+                        @foreach (var invoice in invoices)
+                        {
+                            <div class="card appointment-card border-0 shadow-sm mb-3">
+                                <div class="card-header bg-light border-bottom">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="d-flex align-items-center">
+                                            <div>
+                                                <div class="fw-bold">Invoice #</div>
+                                            </div>
+                                        </div>
+                                        <span class="badge bg-@GetStatusColor(invoice.Status)">
+                                            @invoice.Status
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted small">Appointment</span>
+                                        @if (invoice.Appointment != null)
+                                        {
+                                            <span>@invoice.Appointment.AppointmentDate.ToString("MMM dd")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">N/A</span>
+                                        }
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted fw-bold">Amount</span>
+                                        <span class="fw-bold">@invoice.TotalAmount.ToString("C")</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted small">Date</span>
+                                        <span class="fw-medium">@invoice.CreatedAt.ToString("MMM dd, yyyy")</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                        <span class="text-muted small">Due Date</span>
+                                        @if (invoice.DueDate < DateTime.Now && invoice.Status != "Paid")
+                                        {
+                                            <span class="text-danger">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                                @invoice.DueDate.ToString("MMM dd, yyyy")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span>@invoice.DueDate.ToString("MMM dd, yyyy")</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-white border-top">
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-primary"
+                                                @onclick='() => NavigationManager.NavigateTo($"/invoice/details/{invoice.Id}")'>
+                                            <i class="bi bi-eye"></i> View
+                                        </button>
+                                        @if (invoice.Status != "Paid")
+                                        {
+                                            <button class="btn btn-success"
+                                                    @onclick='() => NavigationManager.NavigateTo($"/invoice/details/{invoice.Id}")'>
+                                                <i class="bi bi-credit-card"></i> Pay
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
                 }
             </div>
         </div>

@@ -6,6 +6,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @attribute [Authorize(Policy = "Authenticated")]
+@rendermode InteractiveServer
 
 <PageTitle>My Dashboard</PageTitle>
 
@@ -250,12 +251,14 @@
         {
             isLoading = true;
             var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            var user = authState.User;
+            var user = await AdminService.GetCurrentUserAsync();
 
-            if (user.Identity?.IsAuthenticated == true)
+
+
+            if (user != null)
             {
-                firstName = user.Identity.Name ?? "Patient";
-                var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                firstName = user.FirstName ?? "Patient";
+                var userId = user.Id;
 
                 // Get current patient
                 var allPatients = await AdminService.GetAllPatientsAsync();

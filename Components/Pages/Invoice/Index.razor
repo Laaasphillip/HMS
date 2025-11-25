@@ -44,7 +44,7 @@
 
     <!-- Statistics Cards -->
     <div class="row mb-4">
-        <div class="col-md-3 mb-3">
+        <div class="col-md-3 col-sm-4 mb-3">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <h6 class="text-muted mb-2">Total Invoices</h6>
@@ -52,7 +52,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
+        <div class="col-md-3 col-sm-4 mb-3">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <h6 class="text-muted mb-2">Pending</h6>
@@ -60,7 +60,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
+        <div class="col-md-3 col-sm-4 mb-3">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <h6 class="text-muted mb-2">Paid</h6>
@@ -82,12 +82,12 @@
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <div class="row g-2">
-                <div class="col-md-4">
+                <div class="col-md-4 col-sm-6">
                     <label class="form-label">Search</label>
                     <input type="text" class="form-control" placeholder="Patient name or invoice #"
                            @bind="searchTerm" @bind:event="oninput" @bind:after="ApplyFilters" />
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     <label class="form-label">Status</label>
                     <select class="form-select" @bind="selectedStatus" @bind:after="ApplyFilters">
                         <option value="">All</option>
@@ -98,11 +98,11 @@
                         <option value="Cancelled">Cancelled</option>
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-2 col-sm-6">
                     <label class="form-label">From Date</label>
                     <input type="date" class="form-control" @bind="fromDate" @bind:after="ApplyFilters" />
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-2 col-sm-6">
                     <label class="form-label">To Date</label>
                     <input type="date" class="form-control" @bind="toDate" @bind:after="ApplyFilters" />
                 </div>
@@ -136,92 +136,161 @@
             }
             else
             {
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Invoice #</th>
-                                <th>Date</th>
-                                <th>Patient</th>
-                                <th>Appointment</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                                <th>Due Date</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var invoice in filteredInvoices)
-                            {
+                <div class="d-none d-lg-block">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
                                 <tr>
-                                    <td><strong>@invoice.InvoiceNumber</strong></td>
-                                    <td>@invoice.CreatedAt.ToString("MMM dd, yyyy")</td>
-                                    <td>
-                                        @if (invoice.Patient?.User != null)
-                                        {
-                                            <span>@invoice.Patient.User.FirstName @invoice.Patient.User.LastName</span>
-                                        }
-                                        else if (invoice.Appointment?.Patient?.User != null)
-                                        {
-                                            <span>@invoice.Appointment.Patient.User.FirstName @invoice.Appointment.Patient.User.LastName</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">N/A</span>
-                                        }
-                                    </td>
-                                    <td>
-                                        @if (invoice.Appointment != null)
-                                        {
-                                            <span>@invoice.Appointment.AppointmentDate.ToString("MMM dd")</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">N/A</span>
-                                        }
-                                    </td>
-                                    <td><strong>@invoice.TotalAmount.ToString("C")</strong></td>
-                                    <td>
-                                        <span class="badge bg-@GetStatusColor(invoice.Status)">
-                                            @invoice.Status
-                                        </span>
-                                    </td>
-                                    <td>
-                                        @if (invoice.DueDate < DateTime.Now && invoice.Status != "Paid")
-                                        {
-                                            <span class="text-danger">
-                                                <i class="bi bi-exclamation-triangle me-1"></i>
-                                                @invoice.DueDate.ToString("MMM dd, yyyy")
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <span>@invoice.DueDate.ToString("MMM dd, yyyy")</span>
-                                        }
-                                    </td>
-                                    <td class="text-end">
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary"
-                                                    @onclick="() => ViewInvoiceDetails(invoice.Id)"
-                                                    title="View Details">
-                                                <i class="bi bi-eye"></i>
-                                            </button>
-                                            <button class="btn btn-outline-info"
-                                                    @onclick="() => EditInvoice(invoice.Id)"
-                                                    title="Edit">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button class="btn btn-outline-danger"
-                                                    @onclick="() => OpenDeleteModal(invoice)"
-                                                    title="Delete">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
+                                    <th>Invoice #</th>
+                                    <th>Date</th>
+                                    <th>Patient</th>
+                                    <th>Appointment</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Due Date</th>
+                                    <th class="text-end">Actions</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach (var invoice in filteredInvoices)
+                                {
+                                    <tr>
+                                        <td><strong>@invoice.InvoiceNumber</strong></td>
+                                        <td>@invoice.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                        <td>
+                                            @if (invoice.Patient?.User != null)
+                                            {
+                                                <span>@invoice.Patient.User.FirstName @invoice.Patient.User.LastName</span>
+                                            }
+                                            else if (invoice.Appointment?.Patient?.User != null)
+                                            {
+                                                <span>@invoice.Appointment.Patient.User.FirstName @invoice.Appointment.Patient.User.LastName</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">N/A</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (invoice.Appointment != null)
+                                            {
+                                                <span>@invoice.Appointment.AppointmentDate.ToString("MMM dd")</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">N/A</span>
+                                            }
+                                        </td>
+                                        <td><strong>@invoice.TotalAmount.ToString("C")</strong></td>
+                                        <td>
+                                            <span class="badge bg-@GetStatusColor(invoice.Status)">
+                                                @invoice.Status
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @if (invoice.DueDate < DateTime.Now && invoice.Status != "Paid")
+                                            {
+                                                <span class="text-danger">
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                                    @invoice.DueDate.ToString("MMM dd, yyyy")
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span>@invoice.DueDate.ToString("MMM dd, yyyy")</span>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary"
+                                                        @onclick="() => ViewInvoiceDetails(invoice.Id)"
+                                                        title="View Details">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger"
+                                                        @onclick="() => OpenDeleteModal(invoice)"
+                                                        title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="d-lg-none">
+                    @foreach (var invoice in filteredInvoices)
+                    {
+                        <div class="card appointment-card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-light border-bottom">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                                             style="width: 40px; height: 40px; font-size: 0.9rem;">
+                                            @GetInitials(invoice.Patient.User.FirstName, invoice.Patient.User?.LastName)
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">@invoice.Patient.User?.FirstName @invoice.Patient.User?.LastName</div>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-@GetStatusColor(invoice.Status)">
+                                        @invoice.Status
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <span class="text-muted fw-bold">Invoice #</span>
+                                    <span class="fw-bold">@invoice.InvoiceNumber</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <span class="text-muted small">Date</span>
+                                    <span class="fw-medium">@invoice.CreatedAt.ToString("MMM dd, yyyy")</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <span class="text-muted small">Appointment</span>
+                                    @if (invoice.Appointment != null)
+                                    {
+                                        <span>@invoice.Appointment.AppointmentDate.ToString("MMM dd")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">N/A</span>
+                                    }
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <span class="text-muted fw-bold">Amount</span>
+                                    <span class="fw-bold">@invoice.TotalAmount.ToString("C")</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <span class="text-muted small">Due Date</span>
+                                    @if (invoice.DueDate < DateTime.Now && invoice.Status != "Paid")
+                                    {
+                                        <span class="text-danger">
+                                            <i class="bi bi-exclamation-triangle me-1"></i>
+                                            @invoice.DueDate.ToString("MMM dd, yyyy")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span>@invoice.DueDate.ToString("MMM dd, yyyy")</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="card-footer bg-white border-top">
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-primary" @onclick="() => ViewInvoiceDetails(invoice.Id)" title="Edit">
+                                        <i class="bi bi-eye me-1"></i>View
+                                    </button>
+                                    <button class="btn btn-outline-danger" @onclick="() => OpenDeleteModal(invoice)" title="Delete">
+                                        <i class="bi bi-trash me-1"></i>Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
                 </div>
                 <div class="mt-3 text-muted">
                     Showing @filteredInvoices.Count of @invoices.Count invoices
@@ -237,16 +306,29 @@
     <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Confirm Delete</h5>
-                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-trash me-2"></i>Delete Invoice
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseDeleteModal"></button>
                 </div>
                 <div class="modal-body">
                     <p>Are you sure you want to delete invoice <strong>@deletingInvoice.InvoiceNumber</strong>?</p>
-                    <p class="text-danger">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        This action cannot be undone.
-                    </p>
+
+                    <div class="alert alert-warning mb-0">
+                        <strong>This will also delete:</strong>
+                        <ul class="mb-0 mt-2">
+                            @if (deletingInvoice.InvoiceItems?.Any() == true)
+                            {
+                                <li>@deletingInvoice.InvoiceItems.Count invoice item(s)</li>
+                            }
+                            @if (deletingInvoice.Transactions?.Any() == true)
+                            {
+                                var totalPaid = deletingInvoice.Transactions.Sum(t => t.Amount);
+                                <li>@deletingInvoice.Transactions.Count payment(s) from transactions - @totalPaid.ToString("C") paid</li>
+                            }
+                        </ul>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
@@ -354,10 +436,6 @@
         Navigation.NavigateTo($"/invoice/details/{id}");
     }
 
-    private void EditInvoice(int id)
-    {
-        Navigation.NavigateTo($"/invoice/edit/{id}");
-    }
 
     private void OpenDeleteModal(Invoice invoice)
     {
@@ -392,6 +470,14 @@
             isDeleting = false;
         }
     }
+
+    private string GetInitials(string? firstName, string? lastName)
+    {
+        var first = !string.IsNullOrEmpty(firstName) ? firstName[0].ToString() : "";
+        var last = !string.IsNullOrEmpty(lastName) ? lastName[0].ToString() : "";
+        return (first + last).ToUpper();
+    }
+
 
     private string GetStatusColor(string? status)
     {
