@@ -13,6 +13,7 @@ namespace HMS.Services
         private readonly ApplicationDbContext _context;
         private readonly IAuthorizationService _authorizationService;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly UserService _userService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
 
@@ -20,30 +21,53 @@ namespace HMS.Services
             ApplicationDbContext context,
             IAuthorizationService authorizationService,
             IHttpContextAccessor httpContextAccessor,
+            UserService userService,
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager)
         {
             _context = context;
             _authorizationService = authorizationService;
             _httpContextAccessor = httpContextAccessor;
+            _userService = userService;
             _userManager = userManager;
             _roleManager = roleManager;
         }
 
-        private ClaimsPrincipal CurrentUser => _httpContextAccessor.HttpContext?.User
-            ?? throw new UnauthorizedAccessException("No user context available");
+        //private ClaimsPrincipal CurrentUser => _httpContextAccessor.HttpContext?.User
+        //    ?? throw new UnauthorizedAccessException("No user context available");
 
+        private async Task<ClaimsPrincipal> GetCurrentUsersAsync()
+        {
+            // Try HttpContext first (for initial page load)
+            var contextUser = _httpContextAccessor.HttpContext?.User;
+            if (contextUser?.Identity?.IsAuthenticated == true)
+            {
+                return contextUser;
+            }
+
+            // Fall back to UserService (for SignalR)
+            var user = await _userService.GetUserAsync();
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                return user;
+            }
+
+            throw new UnauthorizedAccessException("No user context available");
+        }
         private async Task<bool> IsAuthorizedAsync(string policy)
         {
-            var result = await _authorizationService.AuthorizeAsync(CurrentUser, policy);
+            var user = await GetCurrentUsersAsync();
+            var result = await _authorizationService.AuthorizeAsync(user, policy);
             return result.Succeeded;
         }
 
+        // EnsureAuthorizedAsync stays the same - it's already async
         private async Task EnsureAuthorizedAsync(string policy, string operation)
         {
             if (!await IsAuthorizedAsync(policy))
             {
-                var role = CurrentUser.FindFirst(ClaimTypes.Role)?.Value ?? "Unknown";
+                var user = await GetCurrentUsersAsync();
+                var role = user.FindFirst(ClaimTypes.Role)?.Value ?? "Unknown";
                 throw new UnauthorizedAccessException($"User with role '{role}' is not authorized to {operation}");
             }
         }
@@ -348,7 +372,7 @@ namespace HMS.Services
                 if (timeReport == null)
                     return (false, "Time report not found");
 
-                var userId = CurrentUser.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var userId = await _userService.GetUserIdAsync();
 
                 timeReport.ApprovalStatus = isApproved ? "Approved" : "Rejected";
                 timeReport.ApprovedBy = userId;
@@ -407,7 +431,7 @@ namespace HMS.Services
         // Helper method to get current staff member
         private async Task<Staff?> GetCurrentStaffAsync()
         {
-            var userId = CurrentUser.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userId = await _userService.GetUserIdAsync();
             if (string.IsNullOrEmpty(userId))
                 return null;
 
@@ -969,7 +993,7 @@ namespace HMS.Services
             await EnsureAuthorizedAsync("AdminOrStaff", "update schedules");
             var existingSchedule = await _context.Schedules
         .FirstOrDefaultAsync(s =>
-            s.Id != schedule.Id &&  
+            s.Id != schedule.Id &&
             s.StaffId == schedule.StaffId &&
             s.Date.Date == schedule.Date.Date &&
             s.StartTime == schedule.StartTime &&
@@ -1632,7 +1656,7 @@ namespace HMS.Services
         }
         public async Task<ApplicationUser?> GetCurrentUserAsync()
         {
-            var userId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = await _userService.GetUserIdAsync();
             if (string.IsNullOrEmpty(userId)) return null;
 
             return await _context.Users
@@ -2213,7 +2237,7 @@ namespace HMS.Services
                 if (leave.Status != LeaveStatus.Pending)
                     return (false, $"Leave is already {leave.Status}");
 
-                var userId = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userId = await _userService.GetUserIdAsync();
 
                 leave.Status = LeaveStatus.Approved;
                 leave.ApprovedBy = userId;
@@ -2250,7 +2274,7 @@ namespace HMS.Services
                 if (leave.Status != LeaveStatus.Pending)
                     return (false, $"Leave is already {leave.Status}");
 
-                var userId = CurrentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userId = await _userService.GetUserIdAsync();
 
                 leave.Status = LeaveStatus.Rejected;
                 leave.ApprovedBy = userId;
